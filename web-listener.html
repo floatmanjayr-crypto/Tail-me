@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h1>Tail-me listener (desktop)</h1>
+    <ul id="log"></ul>
+    <script>
+      const socket = io('http://localhost:4000');
+      socket.emit('join', 'demo-user-2');
+      socket.on('incomingTail', data => {
+        const li = document.createElement('li');
+        li.textContent = `${data.from}: ${data.title} - ${data.note}`;
+        document.getElementById('log').appendChild(li);
+      });
+    </script>
+  </body>
+</html>
