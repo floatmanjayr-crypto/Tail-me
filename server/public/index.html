@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tail Me</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      padding-bottom: 120px;
+    }
+    .container { max-width: 500px; margin: 0 auto; }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    h1 { text-align: center; font-size: 3rem; margin-bottom: 10px; }
+    h2 { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.5rem; }
+    .status {
+      text-align: center;
+      padding: 15px;
+      background: #E8F4FF;
+      border-radius: 10px;
+      margin: 15px 0;
+      color: #667EEA;
+      font-weight: 600;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 2px solid #E0E0E0;
+      margin-bottom: 12px;
+    }
+    button {
+      background: linear-gradient(135deg, #FF6B6B 0%, #FFD93D 100%);
+      color: white;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:active { transform: scale(0.95); }
+    .hidden { display: none !important; }
+    
+    /* FLOATING TAIL */
+    .floating-tail {
+      position: fixed !important;
+      bottom: 30px !important;
+      right: 30px !important;
+      width: 70px !important;
+      height: 70px !important;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FFD93D 100%) !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 40px !important;
+      box-shadow: 0 10px 30px rgba(255, 107, 107, 0.5) !important;
+      cursor: pointer !important;
+      z-index: 9999 !important;
+      animation: pulse 2s infinite !important;
+      border: 3px solid white !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    /* MODAL - STARTS HIDDEN */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+    }
+    .modal {
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      width: 100%;
+      max-width: 400px;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      z-index: 10001;
+      animation: slideDown 0.3s ease;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .notification h3 { color: #667EEA; margin-bottom: 10px; }
+    
+    .tail-item {
+      padding: 15px;
+      background: #F8F9FA;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667EEA;
+    }
+    .tail-item strong { color: #667EEA; }
+    .tail-time { color: #999; font-size: 12px; margin-top: 5px; }
+    
+    .btn-secondary {
+      background: #E0E0E0 !important;
+      color: #333 !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="login-view" class="card">
+      <h1>🦊</h1>
+      <h2>Tail Me</h2>
+      <p style="text-align: center; color: #666; margin-bottom: 20px;">
+        Share what you're viewing in real-time
+      </p>
+      <input type="text" id="username" placeholder="Enter username" />
+      <button onclick="login()">Get Started</button>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <div class="card">
+        <h1>🦊</h1>
+        <div class="status">Logged in as <strong id="user"></strong></div>
+        <p style="text-align: center; color: #666; margin: 15px 0;">
+          Tap the floating 🦊 tail to send!
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px; color: #333;">Received Tails</h3>
+        <div id="received">
+          <p style="color: #999; text-align: center;">No tails yet...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TAIL - visible after login -->
+  <div class="floating-tail hidden" id="floating-tail" onclick="openSendModal()">
+    🦊
+  </div>
+
+  <!-- MODAL - starts hidden, opens on tail click -->
+  <div class="modal-overlay hidden" id="send-modal" onclick="handleOverlayClick(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2 style="margin-bottom: 20px;">🦊 Send Tail</h2>
+      <input type="text" id="recipient" placeholder="Send to..." />
+      <textarea id="message" placeholder="Your message..." rows="3"></textarea>
+      <button onclick="sendTail()">Send Tail 🦊</button>
+      <button onclick="closeSendModal()" class="btn-secondary">Cancel</button>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION -->
+  <div class="notification hidden" id="notification">
+    <h3>🦊 New Tail!</h3>
+    <div id="notif-content"></div>
+    <button onclick="closeNotification()">Close</button>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentUser = null;
+
+    function login() {
+      const username = document.getElementById('username').value.trim();
+      if (!username) return alert('Enter username');
+      
+      currentUser = username;
+      socket.emit('register', { username });
+      
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('floating-tail').classList.remove('hidden');
+      document.getElementById('user').textContent = username;
+      
+      // Make sure modal is hidden after login
+      document.getElementById('send-modal').classList.add('hidden');
+    }
+
+    function openSendModal() {
+      console.log('Opening modal');
+      document.getElementById('send-modal').classList.remove('hidden');
+    }
+
+    function closeSendModal() {
+      console.log('Closing modal');
+      document.getElementById('send-modal').classList.add('hidden');
+    }
+
+    function handleOverlayClick(event) {
+      if (event.target.id === 'send-modal') {
+        closeSendModal();
+      }
+    }
+
+    function sendTail() {
+      const recipient = document.getElementById('recipient').value.trim();
+      const message = document.getElementById('message').value.trim();
+      
+      if (!recipient) return alert('Enter recipient');
+      
+      socket.emit('send-tail', {
+        recipients: [recipient],
+        url: window.location.href,
+        title: 'Tail Me Test',
+        message: message || 'Check this out!'
+      });
+      
+      alert('✅ Tail sent!');
+      closeSendModal();
+      document.getElementById('recipient').value = '';
+      document.getElementById('message').value = '';
+    }
+
+    function closeNotification() {
+      document.getElementById('notification').classList.add('hidden');
+    }
+
+    socket.on('tail-received', (tail) => {
+      document.getElementById('notif-content').innerHTML = `
+        <strong>${tail.from}</strong> sent you a tail!<br>
+        <p style="margin: 10px 0; color: #666;">"${tail.message}"</p>
+      `;
+      document.getElementById('notification').classList.remove('hidden');
+      
+      const list = document.getElementById('received');
+      if (list.querySelector('p')) list.innerHTML = '';
+      
+      const item = document.createElement('div');
+      item.className = 'tail-item';
+      item.innerHTML = `
+        <strong>🦊 ${tail.from}</strong><br>
+        <p style="margin: 5px 0;">"${tail.message}"</p>
+        <div class="tail-time">${new Date().toLocaleTimeString()}</div>
+      `;
+      list.insertBefore(item, list.firstChild);
+      
+      setTimeout(closeNotification, 5000);
+    });
+  </script>
+</body>
+</html>
