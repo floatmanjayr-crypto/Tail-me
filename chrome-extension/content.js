@@ -10,39 +10,41 @@ let floatingTail = null;
   chrome.storage.local.get(['tailMeUser'], (result) => {
     if (result.tailMeUser) {
       currentUser = result.tailMeUser;
-      loadSocketIO();
+      injectSocketAndConnect();
     }
   });
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'USER_LOGGED_IN') {
       currentUser = message.user;
-      loadSocketIO();
+      injectSocketAndConnect();
     }
   });
 })();
 
-function loadSocketIO() {
+function injectSocketAndConnect() {
   if (socket) return;
 
+  // Inject socket.io from extension bundle
   const script = document.createElement('script');
-  script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+  script.src = chrome.runtime.getURL('socket.io.min.js');
   script.onload = () => {
     connectSocket();
     createFloatingTail();
   };
-  document.head.appendChild(script);
+  (document.head || document.documentElement).appendChild(script);
 }
 
 function connectSocket() {
   socket = io(SOCKET_SERVER);
 
   socket.on('connect', () => {
-    console.log('✅ Connected');
+    console.log('✅ Connected to Tail Me');
     socket.emit('register', currentUser);
   });
 
   socket.on('tail-received', (tail) => {
+    console.log('📬 Tail received:', tail);
     showNotification(tail);
   });
 }
@@ -81,7 +83,7 @@ function createFloatingTail() {
 
   floatingTail.onclick = showSendPopup;
   document.body.appendChild(floatingTail);
-  console.log('🦊 Floating tail added!');
+  console.log('🦊 Floating tail created!');
 }
 
 function showSendPopup() {
@@ -139,7 +141,7 @@ function extractPageMetadata() {
                 document.querySelector('img')?.src || '';
 
   let price = null;
-  const priceSelectors = ['[itemprop="price"]', '.price', '[class*="price"]'];
+  const priceSelectors = ['[itemprop="price"]', '.price', '[class*="price"]', '.a-price-whole'];
   for (const sel of priceSelectors) {
     const el = document.querySelector(sel);
     if (el) {
