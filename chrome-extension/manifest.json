@@ -1,20 +1,31 @@
-﻿{
+{
   "manifest_version": 3,
-  "name": "Catch My Tail",
-  "version": "0.1.0",
-  "description": "Browse together in real-time",
-  "permissions": ["activeTab", "storage"],
-  "action": { 
+  "name": "Tail Me",
+  "version": "1.0.0",
+  "description": "Share what you're viewing in real-time",
+  "permissions": ["storage", "activeTab", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🦊</text></svg>"
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
     }
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "css": ["tail.css"],
-    "run_at": "document_end"
-  }],
-  "host_permissions": ["<all_urls>"]
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
 }
