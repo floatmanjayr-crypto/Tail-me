@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tail Me",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Share what you're viewing in real-time",
   "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": ["<all_urls>"],
@@ -11,9 +11,6 @@
       "matches": ["<all_urls>"]
     }
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

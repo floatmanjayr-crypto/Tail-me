@@ -4,14 +4,17 @@ let currentUser = null;
 let floatingTail = null;
 let socket = null;
 
-// Load socket.io
+// Load socket.io from extension
 const script = document.createElement('script');
-script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+script.src = chrome.runtime.getURL('socket.io.min.js');
 script.onload = () => {
   console.log('✅ Socket.io loaded');
   init();
 };
-document.head.appendChild(script);
+script.onerror = () => {
+  console.error('❌ Failed to load socket.io');
+};
+(document.head || document.documentElement).appendChild(script);
 
 function init() {
   chrome.storage.local.get(['tailMeUser'], (result) => {
