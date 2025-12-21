@@ -5,12 +5,10 @@ let floatingTail = null;
 let socket = null;
 let socketLoaded = false;
 
-// Load socket.io and wait for it
 const script = document.createElement('script');
 script.src = chrome.runtime.getURL('socket.io.min.js');
 script.onload = () => {
   console.log('✅ Socket.io script loaded');
-  // Give it a moment to initialize the global io object
   setTimeout(() => {
     if (typeof io !== 'undefined') {
       console.log('✅ io is defined');
@@ -100,14 +98,28 @@ function showSendPopup() {
   const pageData = extractPageMetadata();
   const popup = document.createElement('div');
   popup.id = 'tail-popup';
-  popup.innerHTML = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2147483646;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById(''tail-popup'').remove()"><div style="background:white;border-radius:20px;padding:25px;width:400px;max-width:90vw;" onclick="event.stopPropagation()"><h2 style="margin:0 0 15px 0;">🦊 Share This Page</h2><p style="margin:0 0 15px 0;color:#666;font-size:14px;">'+pageData.title+'</p><input type="text" id="tail-recipient" placeholder="Send to..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;box-sizing:border-box;"><textarea id="tail-message" placeholder="Your message..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;min-height:60px;box-sizing:border-box;"></textarea><button id="tail-send-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF6B6B 0%,#FFD93D 100%);color:white;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;margin-bottom:8px;">Send Tail 🦊</button><button id="tail-cancel-btn" style="width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;">Cancel</button></div></div>';
-
+  
+  const popupHTML = document.createElement('div');
+  popupHTML.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2147483646;display:flex;align-items:center;justify-content:center;';
+  popupHTML.onclick = () => popup.remove();
+  
+  const modalBox = document.createElement('div');
+  modalBox.style.cssText = 'background:white;border-radius:20px;padding:25px;width:400px;max-width:90vw;';
+  modalBox.onclick = (e) => e.stopPropagation();
+  
+  modalBox.innerHTML = '<h2 style="margin:0 0 15px 0;">🦊 Share This Page</h2><p style="margin:0 0 15px 0;color:#666;font-size:14px;">' + pageData.title + '</p><input type="text" id="tail-recipient" placeholder="Send to..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;box-sizing:border-box;"><textarea id="tail-message" placeholder="Your message..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;min-height:60px;box-sizing:border-box;"></textarea><button id="tail-send-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF6B6B 0%,#FFD93D 100%);color:white;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;margin-bottom:8px;">Send Tail 🦊</button><button id="tail-cancel-btn" style="width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;">Cancel</button>';
+  
+  popupHTML.appendChild(modalBox);
+  popup.appendChild(popupHTML);
   document.body.appendChild(popup);
 
   document.getElementById('tail-send-btn').onclick = () => {
     const recipient = document.getElementById('tail-recipient').value.trim();
     const message = document.getElementById('tail-message').value.trim();
-    if (!recipient) { alert('Enter a recipient'); return; }
+    if (!recipient) { 
+      alert('Enter a recipient'); 
+      return; 
+    }
     
     if (!socket || !socket.connected) {
       alert('Not connected to server. Please refresh the page.');
@@ -138,7 +150,10 @@ function extractPageMetadata() {
   const priceSelectors = ['[itemprop="price"]', '.price', '[class*="price"]', '.a-price-whole'];
   for (const sel of priceSelectors) {
     const el = document.querySelector(sel);
-    if (el) { price = el.textContent.trim(); break; }
+    if (el) { 
+      price = el.textContent.trim(); 
+      break; 
+    }
   }
   return { title, image, price };
 }
@@ -147,7 +162,22 @@ function showNotification(tail) {
   console.log('🔔 Showing notification from:', tail.from);
   const notif = document.createElement('div');
   notif.style.cssText = 'position:fixed;top:20px;right:20px;width:350px;background:white;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.2);z-index:2147483647;padding:20px;';
-  notif.innerHTML = '<h3 style="margin:0 0 10px 0;color:#667EEA;">🦊 '+tail.from+' sent you a tail!</h3><p style="margin:0 0 15px 0;color:#333;">'+tail.message+'</p><button onclick="window.location.href='''+tail.url+'''" style="width:100%;padding:12px;background:#28C840;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:8px;">Catch 🎣</button><button onclick="this.parentElement.remove()" style="width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;">Later</button>';
+  
+  const notifContent = '<h3 style="margin:0 0 10px 0;color:#667EEA;">🦊 ' + tail.from + ' sent you a tail!</h3><p style="margin:0 0 15px 0;color:#333;">' + tail.message + '</p>';
+  const catchBtn = document.createElement('button');
+  catchBtn.textContent = 'Catch 🎣';
+  catchBtn.style.cssText = 'width:100%;padding:12px;background:#28C840;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:8px;';
+  catchBtn.onclick = () => window.location.href = tail.url;
+  
+  const laterBtn = document.createElement('button');
+  laterBtn.textContent = 'Later';
+  laterBtn.style.cssText = 'width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;';
+  laterBtn.onclick = () => notif.remove();
+  
+  notif.innerHTML = notifContent;
+  notif.appendChild(catchBtn);
+  notif.appendChild(laterBtn);
+  
   document.body.appendChild(notif);
   setTimeout(() => notif.remove(), 30000);
 }
