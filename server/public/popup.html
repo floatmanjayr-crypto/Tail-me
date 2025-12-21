@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 300px; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; }
+    h2 { text-align: center; margin: 0 0 20px 0; }
+    .logo { text-align: center; font-size: 50px; margin-bottom: 10px; }
+    input, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid #E0E0E0; font-size: 14px; box-sizing: border-box; }
+    button { background: linear-gradient(135deg, #FF6B6B 0%, #FFD93D 100%); color: white; border: none; font-weight: 600; cursor: pointer; }
+    .status { text-align: center; padding: 10px; background: #E8F4FF; border-radius: 8px; color: #667EEA; margin-bottom: 10px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="login-view">
+    <div class="logo">🦊</div>
+    <h2>Tail Me</h2>
+    <input type="text" id="username" placeholder="Enter username" />
+    <button id="login-btn">Get Started</button>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="logo">🦊</div>
+    <div class="status">Logged in as <strong id="user"></strong></div>
+    <p style="text-align: center; color: #666; font-size: 12px;">The floating tail is now on every website!</p>
+    <button id="logout-btn" style="background: #E0E0E0; color: #333;">Logout</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
