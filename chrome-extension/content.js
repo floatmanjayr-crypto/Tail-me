@@ -3,28 +3,34 @@ console.log('🦊 Tail Me loaded on:', window.location.href);
 let currentUser = null;
 let floatingTail = null;
 let socket = null;
-let socketLoaded = false;
 
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('socket.io.min.js');
-script.onload = () => {
-  console.log('✅ Socket.io script loaded');
-  setTimeout(() => {
-    if (typeof io !== 'undefined') {
-      console.log('✅ io is defined');
-      socketLoaded = true;
-      init();
-    } else {
-      console.error('❌ io is still undefined after loading');
-    }
-  }, 100);
-};
-script.onerror = (e) => {
-  console.error('❌ Failed to load socket.io', e);
-};
-(document.head || document.documentElement).appendChild(script);
+// Wait for page to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 function init() {
+  // Inject socket.io into page context (not extension context)
+  const script = document.createElement('script');
+  script.src = 'https://cdn.socket.io/4.5.4/socket.io.min.js';
+  script.onload = () => {
+    console.log('✅ Socket.io loaded from CDN');
+    setTimeout(startExtension, 200);
+  };
+  script.onerror = () => console.error('❌ Failed to load socket.io');
+  document.head.appendChild(script);
+}
+
+function startExtension() {
+  if (typeof io === 'undefined') {
+    console.error('❌ io still undefined');
+    return;
+  }
+  
+  console.log('✅ io is defined');
+  
   chrome.storage.local.get(['tailMeUser'], (result) => {
     if (result.tailMeUser) {
       currentUser = result.tailMeUser;
@@ -33,22 +39,21 @@ function init() {
       console.log('✅ User found:', currentUser.username);
     } else {
       console.log('⚠️ No user logged in');
+      createFloatingTail();
     }
   });
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'USER_LOGGED_IN') {
       currentUser = message.user;
-      if (socketLoaded) {
-        connectSocket();
-        createFloatingTail();
-      }
+      connectSocket();
+      if (!floatingTail) createFloatingTail();
     }
   });
 }
 
 function connectSocket() {
-  if (socket || !socketLoaded || typeof io === 'undefined') return;
+  if (socket || typeof io === 'undefined') return;
   
   console.log('🔌 Connecting to server...');
   socket = io('https://maida-unvictualled-raina.ngrok-free.dev');
@@ -87,6 +92,10 @@ function createFloatingTail() {
 
   floatingTail.onclick = () => {
     console.log('🦊 Tail clicked!');
+    if (!currentUser) {
+      alert('Please login first!');
+      return;
+    }
     showSendPopup();
   };
   
@@ -99,18 +108,18 @@ function showSendPopup() {
   const popup = document.createElement('div');
   popup.id = 'tail-popup';
   
-  const popupHTML = document.createElement('div');
-  popupHTML.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2147483646;display:flex;align-items:center;justify-content:center;';
-  popupHTML.onclick = () => popup.remove();
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2147483646;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = () => popup.remove();
   
-  const modalBox = document.createElement('div');
-  modalBox.style.cssText = 'background:white;border-radius:20px;padding:25px;width:400px;max-width:90vw;';
-  modalBox.onclick = (e) => e.stopPropagation();
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:20px;padding:25px;width:400px;max-width:90vw;';
+  modal.onclick = (e) => e.stopPropagation();
   
-  modalBox.innerHTML = '<h2 style="margin:0 0 15px 0;">🦊 Share This Page</h2><p style="margin:0 0 15px 0;color:#666;font-size:14px;">' + pageData.title + '</p><input type="text" id="tail-recipient" placeholder="Send to..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;box-sizing:border-box;"><textarea id="tail-message" placeholder="Your message..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;min-height:60px;box-sizing:border-box;"></textarea><button id="tail-send-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF6B6B 0%,#FFD93D 100%);color:white;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;margin-bottom:8px;">Send Tail 🦊</button><button id="tail-cancel-btn" style="width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;">Cancel</button>';
+  modal.innerHTML = '<h2 style="margin:0 0 15px 0;">🦊 Share This Page</h2><p style="margin:0 0 15px 0;color:#666;font-size:14px;">' + pageData.title + '</p><input type="text" id="tail-recipient" placeholder="Send to..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;box-sizing:border-box;"><textarea id="tail-message" placeholder="Your message..." style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:10px;margin-bottom:12px;font-size:16px;min-height:60px;box-sizing:border-box;"></textarea><button id="tail-send-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF6B6B 0%,#FFD93D 100%);color:white;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;margin-bottom:8px;">Send Tail 🦊</button><button id="tail-cancel-btn" style="width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;">Cancel</button>';
   
-  popupHTML.appendChild(modalBox);
-  popup.appendChild(popupHTML);
+  overlay.appendChild(modal);
+  popup.appendChild(overlay);
   document.body.appendChild(popup);
 
   document.getElementById('tail-send-btn').onclick = () => {
@@ -122,7 +131,7 @@ function showSendPopup() {
     }
     
     if (!socket || !socket.connected) {
-      alert('Not connected to server. Please refresh the page.');
+      alert('Not connected to server. Please refresh.');
       return;
     }
 
@@ -163,7 +172,14 @@ function showNotification(tail) {
   const notif = document.createElement('div');
   notif.style.cssText = 'position:fixed;top:20px;right:20px;width:350px;background:white;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.2);z-index:2147483647;padding:20px;';
   
-  const notifContent = '<h3 style="margin:0 0 10px 0;color:#667EEA;">🦊 ' + tail.from + ' sent you a tail!</h3><p style="margin:0 0 15px 0;color:#333;">' + tail.message + '</p>';
+  const heading = document.createElement('h3');
+  heading.style.cssText = 'margin:0 0 10px 0;color:#667EEA;';
+  heading.textContent = '🦊 ' + tail.from + ' sent you a tail!';
+  
+  const msg = document.createElement('p');
+  msg.style.cssText = 'margin:0 0 15px 0;color:#333;';
+  msg.textContent = tail.message;
+  
   const catchBtn = document.createElement('button');
   catchBtn.textContent = 'Catch 🎣';
   catchBtn.style.cssText = 'width:100%;padding:12px;background:#28C840;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:8px;';
@@ -174,7 +190,8 @@ function showNotification(tail) {
   laterBtn.style.cssText = 'width:100%;padding:12px;background:#E0E0E0;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;';
   laterBtn.onclick = () => notif.remove();
   
-  notif.innerHTML = notifContent;
+  notif.appendChild(heading);
+  notif.appendChild(msg);
   notif.appendChild(catchBtn);
   notif.appendChild(laterBtn);
   
