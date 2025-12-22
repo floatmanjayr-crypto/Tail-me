@@ -1,25 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Tail Me",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Share what you're viewing in real-time",
   "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": ["<all_urls>"],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+  "background": {
+    "service_worker": "background.js"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["socket.io.min.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_idle",
-      "all_frames": false
+      "run_at": "document_idle"
     }
   ],
   "action": {
