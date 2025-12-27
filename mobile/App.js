@@ -17,7 +17,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import io from "socket.io-client";
 
-const SOCKET_SERVER = "https://maida-unvictualled-raina.ngrok-free.dev"; // CHANGE TO YOUR IP or HTTPS tunnel URL
+const SOCKET_SERVER = "https://6a243f40c631.ngrok-free.app";
 
 export default function App() {
   const [socket, setSocket] = useState(null);
@@ -30,6 +30,24 @@ export default function App() {
   const [tailUrl, setTailUrl] = useState("");
   const [tailMsg, setTailMsg] = useState("");
   const [recipient, setRecipient] = useState("demo-user-2");
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem("catchMyTailUser");
+    } catch {}
+
+    try {
+      socket?.disconnect?.();
+    } catch {}
+
+    setSocket(null);
+    setUser(null);
+    setActiveSession(null);
+    setShowTailPopup(false);
+    setTempUsername("");
+    setShowRegistration(true);
+  };
+
+
 
   /**
    * activeSession shape (we control it)
@@ -84,7 +102,7 @@ export default function App() {
 
   const connectSocket = (userData) => {
     const SOCKET = io(SOCKET_SERVER, {
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 800,

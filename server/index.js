@@ -16,6 +16,11 @@ const io = new Server(httpServer, {
 const users = new Map();        // username -> { socketId, status, lastSeen }
 const tails = new Map();        // tailId -> tail object
 const sessions = new Map();     // tailId -> session object
+// ===============================
+// 🕒 Tail Expiration Config
+// ===============================
+const TAIL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const ONE_CATCH_ONLY = true;            // true = expires after first catch
 
 console.log("🦊 Tail Me Server Starting...");
 
@@ -52,14 +57,19 @@ io.on("connection", (socket) => {
     const tailId = `tail_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
     const tail = {
-      id: tailId,
-      from,
-      recipients,
-      url,
-      title: tailData?.title || "Tail",
-      message: tailData?.message || "",
-      timestamp: Date.now(),
-    };
+  id: tailId,
+  from,
+  recipients,
+  url,
+  title: tailData?.title || "Tail",
+  message: tailData?.message || "",
+  timestamp: Date.now(),
+
+  // 🦊 Catch tracking
+  catchCount: 0,
+  caughtBy: [],
+};
+
 
     tails.set(tailId, tail);
 
@@ -154,7 +164,7 @@ function serializeSession(session) {
   };
 }
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5050;
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`🦊 Server running on http://0.0.0.0:${PORT}`);
 });
