@@ -30,3 +30,4 @@ socket.on("catch-tail", ({ tailId }) => {
   // (existing session logic continues here)
 });
 */
+
