@@ -1,132 +1,79 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Modal, View, Text, Pressable, Animated, Linking } from "react-native";
-import { socket } from "./socket";
+import React from "react";
+import { Modal, View, Text, TouchableOpacity } from "react-native";
 
-export default function CatchTailModal({ visible, tail, onClose, navigation }) {
-  const [phase, setPhase] = useState("tease"); // tease | ready | caught | actions
-  const glow = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.95)).current;
-
-  useEffect(() => {
-    if (!visible) return;
-
-    setPhase("tease");
-
-    const t = setTimeout(() => setPhase("ready"), 800);
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0, duration: 900, useNativeDriver: true }),
-      ])
-    ).start();
-
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
-
-    return () => clearTimeout(t);
-  }, [visible]);
-
+export default function CatchTailModal({ visible, tail, onClose, onCatch }) {
   if (!tail) return null;
 
-  const catchIt = () => {
-    setPhase("caught");
-
-    Animated.sequence([
-      Animated.spring(scale, { toValue: 1.05, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
-    ]).start();
-
-    socket.emit("catch-tail", { tailId: tail.id });
-
-    setTimeout(() => setPhase("actions"), 500);
-  };
-
-  const continueBrowsing = () => {
-    if (tail.url) Linking.openURL(tail.url);
-  };
-
-  const glowOpacity = glow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.8],
-  });
+  const expired = tail.expired;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 20 }}>
-        <Animated.View
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
+        <View
           style={{
-            backgroundColor: "#0b1220",
-            borderRadius: 22,
-            padding: 20,
-            transform: [{ scale }],
+            backgroundColor: "#0B0F14",
+            borderTopLeftRadius: 22,
+            borderTopRightRadius: 22,
+            padding: 18,
+            borderWidth: 1,
+            borderColor: "#1E293B",
           }}
         >
-          <Pressable onPress={onClose} style={{ alignSelf: "flex-end" }}>
-            <Text style={{ color: "#94a3b8", fontSize: 18 }}>✕</Text>
-          </Pressable>
+          <View style={{ alignItems: "center", marginBottom: 10 }}>
+            <View style={{ width: 48, height: 4, borderRadius: 999, backgroundColor: "#1E293B" }} />
+          </View>
 
-          <Animated.View
-            style={{
-              marginVertical: 30,
-              alignItems: "center",
-              opacity: glowOpacity,
-            }}
-          >
-            {phase === "tease" && (
-              <Text style={{ color: "#cbd5e1", fontSize: 18 }}>
-                A tail is passing by…
-              </Text>
-            )}
+          <Text style={{ color: "#E5E7EB", fontSize: 18, fontWeight: "900" }}>
+            {tail.title || "Tail"}
+          </Text>
 
-            {phase === "ready" && (
-              <Pressable onPress={catchIt}>
-                <Text style={{ color: "white", fontSize: 26, fontWeight: "900" }}>
-                  🦊 Tap to Catch
-                </Text>
-              </Pressable>
-            )}
+          <Text style={{ color: "#9CA3AF", marginTop: 6 }} numberOfLines={2}>
+            {tail.url}
+          </Text>
 
-            {phase === "caught" && (
-              <Text style={{ color: "#86efac", fontSize: 24, fontWeight: "900" }}>
-                You caught it!
-              </Text>
-            )}
-          </Animated.View>
-
-          {phase === "actions" && (
-            <View style={{ alignItems: "center" }}>
-              <Text
-                numberOfLines={2}
-                style={{ color: "white", fontSize: 16, fontWeight: "700", textAlign: "center" }}
-              >
-                {tail.title || tail.url}
-              </Text>
-
-              <Pressable
-                onPress={continueBrowsing}
-                style={{
-                  marginTop: 18,
-                  backgroundColor: "#22c55e",
-                  paddingVertical: 12,
-                  paddingHorizontal: 20,
-                  borderRadius: 999,
-                }}
-              >
-                <Text style={{ color: "#052e16", fontWeight: "900" }}>
-                  Continue Browsing
-                </Text>
-              </Pressable>
-
-              <Pressable onPress={onClose} style={{ marginTop: 12 }}>
-                <Text style={{ color: "#cbd5e1" }}>Back to chat</Text>
-              </Pressable>
-            </View>
+          {!!tail.message && (
+            <Text style={{ color: "#CBD5E1", marginTop: 10 }}>
+              {tail.message}
+            </Text>
           )}
-        </Animated.View>
+
+          <Text style={{ color: "#6B7280", marginTop: 10, fontSize: 12 }}>
+            from {tail.from} • {tail.visibility === "private" ? "private" : "public"}
+            {tail.catchCount ? ` • caught ${tail.catchCount}` : ""}
+          </Text>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                flex: 1,
+                padding: 14,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: "#1E293B",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#CBD5E1", fontWeight: "800" }}>Close</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => onCatch(tail)}
+              disabled={expired}
+              style={{
+                flex: 1,
+                padding: 14,
+                borderRadius: 14,
+                backgroundColor: expired ? "#334155" : "#FF5C5C",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#0B0F14", fontWeight: "900" }}>
+                {expired ? "Expired" : "Catch"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </Modal>
   );

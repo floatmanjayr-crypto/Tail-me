@@ -1,608 +1,428 @@
 // mobile/App.js
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  SafeAreaView,
+  StatusBar,
   View,
   Text,
-  Alert,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
   TextInput,
-  FlatList,
-  SafeAreaView,
-  Linking,
-  KeyboardAvoidingView,
-  Platform,
+  TouchableOpacity,
+  ScrollView,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import io from "socket.io-client";
 
-const SOCKET_SERVER = "https://6a243f40c631.ngrok-free.app";
+import CatchTailModal from "./CatchTailModal";
+import TailHome from "./TailHome";
+import TailCard from "./TailCard";
+import { socket, SOCKET_URL } from "./socket";
 
 export default function App() {
-  const [socket, setSocket] = useState(null);
-  const [user, setUser] = useState(null);
+  const [screen, setScreen] = useState("login"); // login | hub | public | private | chat
+  const [username, setUsername] = useState("");
+  const [me, setMe] = useState(null);
 
-  const [showRegistration, setShowRegistration] = useState(false);
-  const [tempUsername, setTempUsername] = useState("");
+  const [publicTails, setPublicTails] = useState([]);
+  const [inboxTails, setInboxTails] = useState([]);
 
-  const [showTailPopup, setShowTailPopup] = useState(false);
-  const [tailUrl, setTailUrl] = useState("");
-  const [tailMsg, setTailMsg] = useState("");
-  const [recipient, setRecipient] = useState("demo-user-2");
-  const logout = async () => {
-    try {
-      await AsyncStorage.removeItem("catchMyTailUser");
-    } catch {}
+  // Private send
+  const [composeUrl, setComposeUrl] = useState("");
+  const [composeTo, setComposeTo] = useState("");
 
-    try {
-      socket?.disconnect?.();
-    } catch {}
+  // Modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTail, setModalTail] = useState(null);
 
-    setSocket(null);
-    setUser(null);
-    setActiveSession(null);
-    setShowTailPopup(false);
-    setTempUsername("");
-    setShowRegistration(true);
-  };
-
-
-
-  /**
-   * activeSession shape (we control it)
-   * {
-   *   session: {
-   *     id: "sess_tail_...",
-   *     tailId: "tail_...",
-   *     host: "alice",
-   *     url: "https://...",
-   *     title: "...",
-   *     participants: [...],
-   *     messages: [...]
-   *   }
-   * }
-   */
+  // Chat
+  const [activeTail, setActiveTail] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
-  const [chatDraft, setChatDraft] = useState("");
-
-  const flatListRef = useRef(null);
+  const [chatText, setChatText] = useState("");
+  const [chatMsgs, setChatMsgs] = useState([]);
 
   useEffect(() => {
-    checkUser();
     return () => {
       try {
-        if (socket) socket.disconnect();
+        socket.disconnect();
       } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // auto-scroll chat when messages change
-    if (activeSession?.session?.messages?.length) {
-      setTimeout(() => flatListRef.current?.scrollToEnd?.({ animated: true }), 50);
-    }
-  }, [activeSession?.session?.messages?.length]);
+  // ---------- Login ----------
+  const doLogin = () => {
+    const u = username.trim();
+    if (!u) return;
 
-  const checkUser = async () => {
-    try {
-      const userData = await AsyncStorage.getItem("catchMyTailUser");
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        connectSocket(parsedUser);
-      } else {
-        setShowRegistration(true);
+    if (!socket.connected) socket.connect();
+
+    socket.emit("register", { username: u });
+
+    socket.once("registration-complete", (res) => {
+      if (res?.ok) {
+        setMe({ username: u });
+        setScreen("hub");
+        socket.emit("get-public-feed");
       }
-    } catch {
-      setShowRegistration(true);
-    }
+    });
   };
 
-  const connectSocket = (userData) => {
-    const SOCKET = io(SOCKET_SERVER, {
-      transports: ["polling", "websocket"],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 800,
+  // ---------- Socket listeners ----------
+  useEffect(() => {
+    const onPublicFeed = ({ tails }) => setPublicTails(Array.isArray(tails) ? tails : []);
+    const onPublicCreated = (tail) =>
+      setPublicTails((prev) => [tail, ...prev].slice(0, 50));
+    const onPrivateReceived = (tail) => setInboxTails((prev) => [tail, ...prev]);
+
+    const onExpired = ({ tailId }) => {
+      setPublicTails((prev) => prev.map((t) => (t.id === tailId ? { ...t, expired: true } : t)));
+      setInboxTails((prev) => prev.map((t) => (t.id === tailId ? { ...t, expired: true } : t)));
+      if (activeTail?.id === tailId) setActiveTail((t) => (t ? { ...t, expired: true } : t));
+    };
+
+    const onCatchUpdate = (u) => {
+      const patch = (prev) =>
+        prev.map((t) =>
+          t.id === u.tailId ? { ...t, catchCount: u.catchCount, caughtBy: u.caughtBy } : t
+        );
+      setPublicTails(patch);
+      setInboxTails(patch);
+    };
+
+    const onChatMsg = (m) => setChatMsgs((prev) => [...prev, m]);
+
+    socket.on("public-feed", onPublicFeed);
+    socket.on("public-tail-created", onPublicCreated);
+    socket.on("tail-received", onPrivateReceived);
+    socket.on("tail-expired", onExpired);
+    socket.on("tail-catch-update", onCatchUpdate);
+    socket.on("new-chat-message", onChatMsg);
+
+    return () => {
+      socket.off("public-feed", onPublicFeed);
+      socket.off("public-tail-created", onPublicCreated);
+      socket.off("tail-received", onPrivateReceived);
+      socket.off("tail-expired", onExpired);
+      socket.off("tail-catch-update", onCatchUpdate);
+      socket.off("new-chat-message", onChatMsg);
+    };
+  }, [activeTail?.id]);
+
+  // ---------- Open Tail ----------
+  const openTailCard = (tail) => {
+    socket.emit("tail-preview", { tailId: tail.id });
+
+    socket.once("tail-preview-data", (res) => {
+      if (res?.tail) {
+        setModalTail(res.tail);
+        setModalOpen(true);
+      } else {
+        // if server replies expired/not_found, close modal
+        setModalOpen(false);
+      }
     });
-
-    SOCKET.on("connect", () => {
-      console.log("✅ Connected");
-      SOCKET.emit("register", userData);
-    });
-
-    SOCKET.on("connect_error", (err) => {
-      console.log("❌ connect_error:", err?.message);
-    });
-
-    SOCKET.on("registration-complete", () => {
-      console.log("✅ Registered");
-    });
-
-    // When a tail arrives
-    SOCKET.on("tail-received", (tail) => {
-      const body = tail.message ? `${tail.message}\n\n${tail.url}` : tail.url;
-
-      Alert.alert(`🦊 ${tail.from} sent a tail`, body, [
-        {
-          text: "Open",
-          onPress: () =>
-            Linking.openURL(tail.url).catch(() => Alert.alert("Failed to open link")),
-        },
-        {
-          text: "Chat",
-          onPress: () => SOCKET.emit("catch-tail", { tailId: tail.id }),
-        },
-        { text: "Later", style: "cancel" },
-      ]);
-    });
-
-    // Session started (chat thread)
-    // Server sends: { session: { id, host, url, title, participants, messages } }
-    // We add tailId by reading it from session.id format: sess_<tailId>
-    SOCKET.on("session-started", (payload) => {
-      const sess = payload?.session;
-      if (!sess?.id) return;
-
-      // sessionId is "sess_<tailId>" → derive tailId
-      const derivedTailId = String(sess.id).startsWith("sess_") ? String(sess.id).slice(5) : null;
-
-      setActiveSession({
-        session: {
-          ...sess,
-          tailId: derivedTailId || sess.tailId || null,
-          messages: Array.isArray(sess.messages) ? sess.messages : [],
-        },
-      });
-    });
-
-    // Session metadata updates (participants, etc.)
-    SOCKET.on("session-updated", (payload) => {
-      const sess = payload?.session;
-      if (!sess?.id) return;
-
-      setActiveSession((prev) => {
-        if (!prev?.session || prev.session.id !== sess.id) return prev;
-        return {
-          ...prev,
-          session: {
-            ...prev.session,
-            ...sess,
-          },
-        };
-      });
-    });
-
-    // Incoming chat message in session
-    SOCKET.on("new-chat-message", (message) => {
-      setActiveSession((prev) => {
-        if (!prev?.session) return prev;
-        return {
-          ...prev,
-          session: {
-            ...prev.session,
-            messages: [...(prev.session.messages || []), message],
-          },
-        };
-      });
-    });
-
-    SOCKET.on("session-ended", ({ endedBy }) => {
-      Alert.alert("Session ended", endedBy ? `Ended by ${endedBy}` : "Session ended");
-      setActiveSession(null);
-      setChatDraft("");
-    });
-
-    setSocket(SOCKET);
   };
 
-  const validUrl = (url) => {
-    const u = (url || "").trim();
-    return u.startsWith("https://") || u.startsWith("http://");
+  // ---------- Catch ----------
+  const catchTail = (tail) => {
+    setModalOpen(false);
+    socket.emit("catch-tail", { tailId: tail.id });
+
+    socket.once("session-started", (res) => {
+      if (res?.session) {
+        setActiveTail(res.tail || tail);
+        setActiveSession(res.session);
+        setChatMsgs(res.session.messages || []);
+        setScreen("chat");
+      }
+    });
   };
 
+  // ---------- Send (PRIVATE screen) ----------
   const sendTail = () => {
-    if (!socket) {
-      Alert.alert("Not connected", "Socket not ready. Check your server IP.");
-      return;
-    }
+    const url = composeUrl.trim();
+    if (!url) return;
 
-    const url = tailUrl.trim();
-    const to = recipient.trim().toLowerCase();
+    const to = composeTo.trim().replace(/^@/, "");
+    if (!to) return; // private requires a username
 
-    if (!to) {
-      Alert.alert("Missing recipient", "Enter a username to send to.");
-      return;
-    }
-    if (!validUrl(url)) {
-      Alert.alert("Invalid link", "Link must start with https:// or http://");
-      return;
-    }
-
-    // ✅ match server: recipients: []
     socket.emit("send-tail", {
-      recipients: [to],
       url,
       title: "Tail",
-      message: tailMsg.trim(),
+      message: "",
+      visibility: "private",
+      recipients: [to],
     });
 
-    setShowTailPopup(false);
-    setTailUrl("");
-    setTailMsg("");
-    Alert.alert("✅ Tail sent!", `Sent to ${to}`);
+    setComposeUrl("");
+    setComposeTo("");
   };
 
-  const openCurrentSessionLink = async () => {
-    const url = activeSession?.session?.url;
-    if (!url) return;
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert("Failed to open link");
-    }
-  };
-
+  // ---------- Chat send ----------
   const sendChat = () => {
-    const text = chatDraft.trim();
-    if (!text) return;
-
-    if (!socket || !activeSession?.session?.tailId) return;
-
-    // ✅ match server: tail-chat expects tailId (tail_...)
-    socket.emit("tail-chat", {
-      tailId: activeSession.session.tailId,
-      text,
-    });
-
-    // ✅ remove optimistic add to avoid duplicates
-    setChatDraft("");
+    const t = chatText.trim();
+    if (!t || !activeSession) return;
+    socket.emit("tail-chat", { tailId: activeSession.id, text: t });
+    setChatText("");
   };
 
-  // REGISTRATION MODAL
-  if (showRegistration) {
-    return (
-      <SafeAreaView style={styles.centeredView}>
-        <View style={styles.registrationCard}>
-          <Text style={styles.logo}>🦊</Text>
-          <Text style={styles.title}>Tail Me</Text>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0B0F14" }}>
+      <StatusBar barStyle="light-content" />
+
+      {/* LOGIN */}
+      {screen === "login" && (
+        <View style={{ flex: 1, padding: 24, justifyContent: "center" }}>
+          <Text style={{ color: "#E5E7EB", fontSize: 30, fontWeight: "900" }}>Tail</Text>
+          <Text style={{ color: "#9CA3AF", marginTop: 6 }}>
+            Capture & share without streaming.
+          </Text>
+
+          <Text style={{ color: "#6B7280", marginTop: 10, fontSize: 12 }}>
+            Connecting to: {SOCKET_URL}
+          </Text>
 
           <TextInput
-            style={styles.input}
-            placeholder="Username"
-            value={tempUsername}
-            onChangeText={setTempUsername}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Choose a username"
+            placeholderTextColor="#6B7280"
             autoCapitalize="none"
+            style={{
+              marginTop: 18,
+              backgroundColor: "#121826",
+              color: "#E5E7EB",
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: "#1E293B",
+            }}
           />
 
           <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={async () => {
-              const name = tempUsername.trim().toLowerCase();
-              if (!name) {
-                Alert.alert("Enter a username");
-                return;
-              }
-              const userData = { username: name };
-              await AsyncStorage.setItem("catchMyTailUser", JSON.stringify(userData));
-              setUser(userData);
-              setShowRegistration(false);
-              connectSocket(userData);
+            onPress={doLogin}
+            style={{
+              marginTop: 14,
+              backgroundColor: "#22C55E",
+              padding: 14,
+              borderRadius: 14,
+              alignItems: "center",
             }}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={{ color: "#052E16", fontWeight: "900" }}>Enter</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* HUB */}
+      {screen === "hub" && me && (
+        <TailHome
+          me={me}
+          onGoPublic={() => {
+            setScreen("public");
+            socket.emit("get-public-feed");
+          }}
+          onGoPrivate={() => setScreen("private")}
+        />
+      )}
+
+      {/* PUBLIC */}
+      {screen === "public" && me && (
+        <View style={{ flex: 1, padding: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <TouchableOpacity onPress={() => setScreen("hub")}>
+              <Text style={{ color: "#94A3B8", fontWeight: "900" }}>← Back</Text>
+            </TouchableOpacity>
+
+            <Text style={{ color: "#E5E7EB", fontSize: 18, fontWeight: "900" }}>🔥 Public</Text>
+
+            <Text style={{ color: "#64748B" }}>@{me.username}</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => socket.emit("get-public-feed")}
+            style={{
+              marginTop: 12,
+              borderWidth: 1,
+              borderColor: "#1E293B",
+              padding: 12,
+              borderRadius: 14,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#CBD5E1", fontWeight: "900" }}>Refresh</Text>
           </TouchableOpacity>
 
-          <Text style={styles.helperText}>
-            Tip: Use two phones (or two emulators) with different usernames.
-          </Text>
+          <ScrollView style={{ marginTop: 14 }} showsVerticalScrollIndicator={false}>
+            {publicTails.map((t) => (
+              <TailCard key={t.id} tail={t} onPressTail={openTailCard} />
+            ))}
+            {publicTails.length === 0 && (
+              <Text style={{ color: "#6B7280", marginTop: 16, textAlign: "center" }}>
+                No public tails yet.
+              </Text>
+            )}
+          </ScrollView>
+
+          <CatchTailModal
+            visible={modalOpen}
+            tail={modalTail}
+            onClose={() => setModalOpen(false)}
+            onCatch={catchTail}
+          />
         </View>
-      </SafeAreaView>
-    );
-  }
+      )}
 
-  // MAIN APP
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.centeredView}>
-        <Text style={styles.statusText}>🦊 Tail Me Active</Text>
-        <Text style={styles.username}>Logged in as {user?.username}</Text>
-
-        <TouchableOpacity style={styles.floatingTail} onPress={() => setShowTailPopup(true)}>
-          <Text style={styles.tailEmoji}>🦊</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* SEND TAIL POPUP */}
-      <Modal visible={showTailPopup} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.popupOverlay}
-          activeOpacity={1}
-          onPress={() => setShowTailPopup(false)}
-        >
-          <View style={styles.popupCard} onStartShouldSetResponder={() => true}>
-            <Text style={styles.popupTitle}>🦊 Send Tail</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Paste link (https://amazon.com/...)"
-              value={tailUrl}
-              onChangeText={setTailUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Message (optional)"
-              value={tailMsg}
-              onChangeText={setTailMsg}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Recipient username (demo-user-2)"
-              value={recipient}
-              onChangeText={setRecipient}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <TouchableOpacity style={styles.primaryButton} onPress={sendTail}>
-              <Text style={styles.buttonText}>Send Tail</Text>
+      {/* PRIVATE */}
+      {screen === "private" && me && (
+        <View style={{ flex: 1, padding: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <TouchableOpacity onPress={() => setScreen("hub")}>
+              <Text style={{ color: "#94A3B8", fontWeight: "900" }}>← Back</Text>
             </TouchableOpacity>
+
+            <Text style={{ color: "#E5E7EB", fontSize: 18, fontWeight: "900" }}>💬 Private</Text>
+
+            <Text style={{ color: "#64748B" }}>@{me.username}</Text>
+          </View>
+
+          {/* Composer */}
+          <View
+            style={{
+              marginTop: 14,
+              backgroundColor: "#121826",
+              borderRadius: 16,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: "#1E293B",
+            }}
+          >
+            <Text style={{ color: "#CBD5E1", fontWeight: "900" }}>Send a Tail</Text>
+
+            <TextInput
+              value={composeUrl}
+              onChangeText={setComposeUrl}
+              placeholder="Paste link (Amazon, TikTok, etc)"
+              placeholderTextColor="#6B7280"
+              autoCapitalize="none"
+              style={{
+                marginTop: 8,
+                color: "#E5E7EB",
+                backgroundColor: "#0B0F14",
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#1E293B",
+              }}
+            />
+
+            <TextInput
+              value={composeTo}
+              onChangeText={setComposeTo}
+              placeholder="@username"
+              placeholderTextColor="#6B7280"
+              autoCapitalize="none"
+              style={{
+                marginTop: 10,
+                color: "#E5E7EB",
+                backgroundColor: "#0B0F14",
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#1E293B",
+              }}
+            />
 
             <TouchableOpacity
-              style={[styles.secondaryButton, { marginTop: 10 }]}
-              onPress={() => setShowTailPopup(false)}
+              onPress={sendTail}
+              style={{
+                marginTop: 10,
+                padding: 14,
+                borderRadius: 12,
+                backgroundColor: "#22C55E",
+                alignItems: "center",
+              }}
             >
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
+              <Text style={{ color: "#052E16", fontWeight: "900" }}>Send</Text>
             </TouchableOpacity>
-
-            <Text style={styles.smallNote}>
-              (No in-app browser yet) Tails open in the real Chrome/Safari.
-            </Text>
           </View>
-        </TouchableOpacity>
-      </Modal>
 
-      {/* ACTIVE SESSION (CHAT + TAIL CARD) */}
-      {activeSession && (
-        <Modal visible animationType="slide">
-          <SafeAreaView style={styles.container}>
-            <View style={styles.sessionHeader}>
-              <Text style={styles.sessionTitle}>
-                Tail Session • {activeSession.session.host}
+          <Text style={{ color: "#94A3B8", marginTop: 14, fontWeight: "900" }}>Inbox</Text>
+
+          <ScrollView style={{ marginTop: 10 }} showsVerticalScrollIndicator={false}>
+            {inboxTails.map((t) => (
+              <TailCard key={t.id} tail={t} onPressTail={openTailCard} />
+            ))}
+            {inboxTails.length === 0 && (
+              <Text style={{ color: "#6B7280", marginTop: 16, textAlign: "center" }}>
+                Your inbox is empty.
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  if (socket && activeSession?.session?.tailId) {
-                    socket.emit("end-tail-session", { tailId: activeSession.session.tailId });
-                  }
-                  setActiveSession(null);
-                  setChatDraft("");
-                }}
-              >
-                <Text style={styles.endText}>End</Text>
-              </TouchableOpacity>
-            </View>
+            )}
+          </ScrollView>
 
-            {/* Tail Card */}
-            <View style={styles.tailCard}>
-              <Text style={styles.tailCardLabel}>Current Tail Link</Text>
-              <Text style={styles.tailCardUrl} numberOfLines={2}>
-                {activeSession.session.url}
-              </Text>
+          <CatchTailModal
+            visible={modalOpen}
+            tail={modalTail}
+            onClose={() => setModalOpen(false)}
+            onCatch={catchTail}
+          />
+        </View>
+      )}
 
-              <TouchableOpacity style={styles.primaryButton} onPress={openCurrentSessionLink}>
-                <Text style={styles.buttonText}>Open in Browser</Text>
-              </TouchableOpacity>
-            </View>
+      {/* CHAT */}
+      {screen === "chat" && activeSession && (
+        <View style={{ flex: 1, padding: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <TouchableOpacity onPress={() => setScreen("hub")}>
+              <Text style={{ color: "#CBD5E1", fontWeight: "900" }}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={{ color: "#9CA3AF" }}>Tail Chat</Text>
+            <Text style={{ color: "#0B0F14" }}>.</Text>
+          </View>
 
-            {/* Chat */}
-            <View style={styles.chatArea}>
-              <FlatList
-                ref={flatListRef}
-                data={activeSession.session.messages || []}
-                keyExtractor={(item, idx) => `${item.id || item.ts || "m"}-${idx}`}
-                renderItem={({ item }) => (
-                  <View
-                    style={[
-                      styles.chatMessage,
-                      item.from === user.username ? styles.myMessage : styles.theirMessage,
-                    ]}
-                  >
-                    <Text style={item.from === user.username ? styles.myText : styles.theirText}>
-                      <Text style={{ fontWeight: "800" }}>{item.from}: </Text>
-                      {item.text}
-                    </Text>
-                  </View>
-                )}
-              />
+          <Text style={{ color: "#E5E7EB", marginTop: 10, fontWeight: "900" }}>
+            {activeTail?.url || ""}
+          </Text>
 
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-              >
-                <View style={styles.chatInputRow}>
-                  <TextInput
-                    style={styles.chatTextInput}
-                    placeholder="Type message..."
-                    value={chatDraft}
-                    onChangeText={setChatDraft}
-                    onSubmitEditing={sendChat}
-                    returnKeyType="send"
-                  />
-                  <TouchableOpacity style={styles.sendBtn} onPress={sendChat}>
-                    <Text style={styles.sendBtnText}>Send</Text>
-                  </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
-            </View>
-          </SafeAreaView>
-        </Modal>
+          <ScrollView style={{ marginTop: 12 }} showsVerticalScrollIndicator={false}>
+            {chatMsgs.map((m, idx) => (
+              <View key={idx} style={{ paddingVertical: 8 }}>
+                <Text style={{ color: m.from === "system" ? "#6B7280" : "#E5E7EB" }}>
+                  <Text style={{ color: "#9CA3AF", fontWeight: "800" }}>{m.from}: </Text>
+                  {m.text}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+            <TextInput
+              value={chatText}
+              onChangeText={setChatText}
+              placeholder="Type message…"
+              placeholderTextColor="#6B7280"
+              autoCapitalize="none"
+              style={{
+                flex: 1,
+                color: "#E5E7EB",
+                backgroundColor: "#121826",
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#1E293B",
+              }}
+            />
+            <TouchableOpacity
+              onPress={sendChat}
+              style={{
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                backgroundColor: "#22C55E",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#052E16", fontWeight: "900" }}>Send</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
-  centeredView: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  registrationCard: {
-    width: "85%",
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 30,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-
-  logo: { fontSize: 60, marginBottom: 10 },
-  title: { fontSize: 28, fontWeight: "bold", color: "#333", marginBottom: 20 },
-
-  input: {
-    width: "100%",
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 12,
-    fontSize: 16,
-    backgroundColor: "white",
-  },
-
-  primaryButton: {
-    width: "100%",
-    height: 50,
-    backgroundColor: "#FF6B6B",
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 6,
-  },
-
-  secondaryButton: {
-    width: "100%",
-    height: 46,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white",
-  },
-
-  secondaryButtonText: { color: "#333", fontSize: 16, fontWeight: "600" },
-
-  buttonText: { color: "white", fontSize: 16, fontWeight: "700" },
-  helperText: { marginTop: 14, color: "#666", textAlign: "center" },
-
-  statusText: { fontSize: 24, marginBottom: 10 },
-  username: { fontSize: 16, color: "#666" },
-
-  floatingTail: {
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-    width: 70,
-    height: 70,
-    backgroundColor: "#FF6B6B",
-    borderRadius: 35,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FF6B6B",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-
-  tailEmoji: { fontSize: 35 },
-
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-  },
-
-  popupCard: {
-    width: "100%",
-    maxWidth: 520,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 18,
-  },
-
-  popupTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
-
-  smallNote: { marginTop: 10, color: "#666", fontSize: 12 },
-
-  sessionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 15,
-    backgroundColor: "#FF6B6B",
-    alignItems: "center",
-  },
-
-  sessionTitle: { color: "white", fontSize: 16, fontWeight: "800" },
-  endText: { color: "white", fontWeight: "800" },
-
-  tailCard: {
-    backgroundColor: "white",
-    margin: 12,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-
-  tailCardLabel: { fontWeight: "900", color: "#111" },
-  tailCardUrl: { marginTop: 6, color: "#333" },
-
-  chatArea: { flex: 1, marginHorizontal: 12, marginBottom: 12 },
-  chatMessage: { padding: 10, marginVertical: 6, borderRadius: 12 },
-
-  myMessage: { alignSelf: "flex-end", backgroundColor: "#FF6B6B", maxWidth: "85%" },
-  theirMessage: { alignSelf: "flex-start", backgroundColor: "#F0F0F0", maxWidth: "85%" },
-
-  myText: { color: "white" },
-  theirText: { color: "#111" },
-
-  chatInputRow: {
-    flexDirection: "row",
-    gap: 10,
-    paddingTop: 10,
-    alignItems: "center",
-  },
-
-  chatTextInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: "white",
-  },
-
-  sendBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
-    backgroundColor: "#FF6B6B",
-  },
-
-  sendBtnText: { color: "white", fontWeight: "800" },
-});
