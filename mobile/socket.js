@@ -5,7 +5,7 @@ import { Platform } from "react-native";
  * 🔁 CHANGE THIS ONLY WHEN NGROK CHANGES
  * Paste your current ngrok https URL here
  */
-const NGROK_URL = "https://3881dd09d405.ngrok-free.app"; // 👈 EDIT THIS
+const NGROK_URL = "https://6ab4-135-237-130-237.ngrok-free.app"; // 👈 EDIT THIS
 
 // Fallback for local dev (emulator / simulator)
 const LOCAL_URL =
