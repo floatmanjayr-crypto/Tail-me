@@ -1,22 +1,27 @@
 import { io } from "socket.io-client";
 import { Platform } from "react-native";
 
-/**
- * 🔁 CHANGE THIS ONLY WHEN NGROK CHANGES
- * Paste your current ngrok https URL here
- */
-const NGROK_URL = "https://6ab4-135-237-130-237.ngrok-free.app"; // 👈 EDIT THIS
+const USE_TUNNEL = true; // 👈 flip this ON/OFF when needed
 
-// Fallback for local dev (emulator / simulator)
+const NGROK_URL = "https://e09d-74-249-85-194.ngrok-free.app";
+
 const LOCAL_URL =
   Platform.OS === "android"
     ? "http://10.0.2.2:5050"
     : "http://localhost:5050";
 
-// 👉 Toggle which one you want to use
-export const SOCKET_URL = NGROK_URL || LOCAL_URL;
+const PROD_URL = "https://api.tailme.app";
+
+export const SOCKET_URL = __DEV__
+  ? (USE_TUNNEL ? NGROK_URL : LOCAL_URL)
+  : PROD_URL;
 
 export const socket = io(SOCKET_URL, {
-  transports: ["websocket","polling"],
   autoConnect: false,
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 20,
+  timeout: 10000,
 });
