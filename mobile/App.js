@@ -1,4 +1,4 @@
-// ============================================
+/ ============================================
 // App.js — Tail Me (Final Merged v5)
 // ✅ All V2 original features preserved
 // ✅ All V1 new features added
@@ -74,6 +74,36 @@ const GEO_RADII = [
   { label: "City", meters: 25000 },
 ];
 
+
+// ── Categories ─────────────────────────────────────────
+const TAIL_CATEGORIES = [
+  { id: "business",  label: "Business",   icon: "💼" },
+  { id: "travel",    label: "Travel",     icon: "✈️" },
+  { id: "food",      label: "Food",       icon: "🍕" },
+  { id: "shopping",  label: "Shopping",   icon: "🛍️" },
+  { id: "parties",   label: "Parties",    icon: "🎉" },
+  { id: "fitness",   label: "Fitness",    icon: "💪" },
+  { id: "music",     label: "Music",      icon: "🎵" },
+  { id: "sports",    label: "Sports",     icon: "⚽" },
+  { id: "gaming",    label: "Gaming",     icon: "🎮" },
+  { id: "tech",      label: "Tech",       icon: "💻" },
+  { id: "fashion",   label: "Fashion",    icon: "👗" },
+  { id: "deals",     label: "Deals",      icon: "🏷️" },
+];
+const getCategoryById = (id) => TAIL_CATEGORIES.find((c) => c.id === id);
+
+const REVEAL_SKINS = [
+  { id: "default",  label: "Default",   gradient: ["#0D1220", "#1E293B"], accent: "#7C3AED", emoji: "⚡" },
+  { id: "fire",     label: "Fire",      gradient: ["#1a0a00", "#2d1200"], accent: "#ff4d00", emoji: "🔥" },
+  { id: "ocean",    label: "Ocean",     gradient: ["#001a2e", "#003a5c"], accent: "#0ea5e9", emoji: "🌊" },
+  { id: "forest",   label: "Forest",    gradient: ["#001a0a", "#003318"], accent: "#22c55e", emoji: "🌿" },
+  { id: "gold",     label: "Gold",      gradient: ["#1a1200", "#332400"], accent: "#f59e0b", emoji: "👑" },
+  { id: "neon",     label: "Neon",      gradient: ["#0a001a", "#1a0033"], accent: "#c084fc", emoji: "🌙" },
+  { id: "candy",    label: "Candy",     gradient: ["#1a0010", "#33001f"], accent: "#f43f8e", emoji: "🍬" },
+  { id: "ice",      label: "Ice",       gradient: ["#001020", "#002040"], accent: "#67e8f9", emoji: "❄️" },
+];
+
+
 // ── Themes ──────────────────────────────────────────────
 const DARK = {
   bg: "#070A0F",
@@ -113,6 +143,106 @@ async function copyToClipboard(text) {
     return false;
   }
 }
+
+
+const CategoryPicker = ({ selected, onChange, colors: C, maxSelect = 3 }) => {
+  const toggle = (id) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((s) => s !== id));
+    } else {
+      if (selected.length < maxSelect) {
+        onChange([...selected, id]);
+      } else {
+        onChange([...selected.slice(1), id]);
+      }
+    }
+  };
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ color: C.muted, fontWeight: "800", fontSize: 12 }}>
+          {selected.length}/{maxSelect} SELECTED
+        </Text>
+        {selected.length > 0 && (
+          <TouchableOpacity onPress={() => onChange([])}>
+            <Text style={{ color: C.red, fontWeight: "700", fontSize: 12 }}>Clear</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {TAIL_CATEGORIES.map((cat) => {
+          const isSelected = selected.includes(cat.id);
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              onPress={() => toggle(cat.id)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingVertical: 9,
+                paddingHorizontal: 12,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: isSelected ? C.brand : C.border,
+                backgroundColor: isSelected ? "rgba(124,58,237,0.12)" : C.panel2,
+              }}
+            >
+              <Text style={{ fontSize: 15 }}>{cat.icon}</Text>
+              <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "700", fontSize: 13 }}>
+                {cat.label}
+              </Text>
+              {isSelected && (
+                <Text style={{ color: C.brand, fontWeight: "900", fontSize: 11 }}>✓</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+const CategoryFilterBar = ({ selected, userInterests = [], onChange, colors: C }) => {
+  const filterOptions = [
+    { id: "foryou", label: "For You", icon: "✨" },
+    ...TAIL_CATEGORIES.filter((cat) => userInterests.includes(cat.id)),
+    { id: "all", label: "All", icon: "🌐" },
+  ];
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 4 }}
+    >
+      {filterOptions.map((opt) => {
+        const isSelected = selected === opt.id;
+        return (
+          <TouchableOpacity
+            key={opt.id}
+            onPress={() => onChange(opt.id)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
+              paddingVertical: 7,
+              paddingHorizontal: 13,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: isSelected ? C.brand : C.border,
+              backgroundColor: isSelected ? "rgba(124,58,237,0.18)" : C.panel,
+            }}
+          >
+            <Text style={{ fontSize: 13 }}>{opt.icon}</Text>
+            <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 12 }}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+};
 
 // ═════════════════════════════════════════════════════════
 // APP
@@ -182,6 +312,9 @@ export default function App() {
   const [composeGeoRadius, setComposeGeoRadius] = useState(2);
   const [composeGeoLocation, setComposeGeoLocation] = useState(null);
   const [composeCatchLimit, setComposeCatchLimit] = useState("10");
+  const [composeCategories, setComposeCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState("foryou");
+  const [composeRevealSkin, setComposeRevealSkin] = useState("default");
 
   // ── Refs for closure-safe access ──────────────────────
   const meRef = useRef(null);
@@ -227,6 +360,13 @@ export default function App() {
             setPassportCatches(JSON.parse(cats) || []);
           } catch {}
         }
+        const interests = await AsyncStorage.getItem("tailme_interests");
+        if (interests) {
+          try {
+            const parsed = JSON.parse(interests) || [];
+            setMe(prev => prev ? { ...prev, interests: parsed } : { username: "", interests: parsed });
+          } catch {}
+        }
       } catch {}
     })();
   }, []);
@@ -246,6 +386,12 @@ export default function App() {
       JSON.stringify(passportCatches)
     ).catch(() => {});
   }, [passportCatches]);
+
+  useEffect(() => {
+    if (me?.interests) {
+      AsyncStorage.setItem("tailme_interests", JSON.stringify(me.interests)).catch(() => {});
+    }
+  }, [me?.interests]);
 
   // ── Location ──────────────────────────────────────────
   useEffect(() => {
@@ -466,7 +612,7 @@ export default function App() {
     socket.once("registration-complete", (res) => {
       console.log("📥 Registration response:", res);
       if (res?.ok) {
-        setMe({ username: u });
+        setMe({ username: u, interests: [] });
         setScreen("hub");
         socket.emit("get-smart-feed");
         socket.emit("get-public-feed");
@@ -706,6 +852,8 @@ export default function App() {
     setComposeGeoRadius(2);
     setComposeGeoLocation(null);
     setComposeCatchLimit("10");
+    setComposeCategories([]);
+    setComposeRevealSkin("default");
   }, []);
 
   // ── Send tail ─────────────────────────────────────────
@@ -830,6 +978,8 @@ export default function App() {
         durationUnit: preset.unit,
         isAd: composeIsAd,
         tailType: composeTailType,
+        categories: composeCategories,
+        revealSkin: composeRevealSkin,
         reveal,
         geo,
         ...(composeTailType === "DROP" && {
@@ -1428,6 +1578,21 @@ export default function App() {
             </View>
           </View>
 
+          {/* Category Picker */}
+          {composeTailType !== "CHAIN" && (
+            <View>
+              <Text style={{ color: C.muted, fontWeight: "900", marginBottom: 8 }}>
+                Categories (optional)
+              </Text>
+              <CategoryPicker
+                selected={composeCategories}
+                onChange={setComposeCategories}
+                colors={C}
+                maxSelect={3}
+              />
+            </View>
+          )}
+
           {/* CHAIN builder */}
           {composeTailType === "CHAIN" && (
             <TouchableOpacity
@@ -1573,6 +1738,65 @@ export default function App() {
                   fontSize: 16,
                 }}
               />
+            </View>
+          )}
+
+          {/* Reveal Skin Picker */}
+          {composeTailType !== "CHAIN" && (
+            <View>
+              <Text style={{ color: C.muted, fontWeight: "900", marginBottom: 8 }}>
+                Reveal Card Style
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                {REVEAL_SKINS.map((skin) => {
+                  const active = composeRevealSkin === skin.id;
+                  return (
+                    <TouchableOpacity
+                      key={skin.id}
+                      onPress={() => setComposeRevealSkin(skin.id)}
+                      style={{
+                        width: 72,
+                        height: 80,
+                        borderRadius: 14,
+                        borderWidth: 2,
+                        borderColor: active ? skin.accent : C.border,
+                        backgroundColor: skin.gradient[0],
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View style={{
+                        position: "absolute",
+                        bottom: -10, right: -10,
+                        width: 50, height: 50,
+                        borderRadius: 25,
+                        backgroundColor: skin.accent,
+                        opacity: 0.15,
+                      }} />
+                      <Text style={{ fontSize: 22 }}>{skin.emoji}</Text>
+                      <Text style={{ color: active ? skin.accent : C.muted, fontWeight: "800", fontSize: 10 }}>
+                        {skin.label}
+                      </Text>
+                      {active && (
+                        <View style={{
+                          position: "absolute",
+                          top: 4, right: 4,
+                          width: 14, height: 14,
+                          borderRadius: 7,
+                          backgroundColor: skin.accent,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}>
+                          <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
 
@@ -1828,6 +2052,10 @@ export default function App() {
               </Text>
             )}
             <Text style={{ color: C.text }}>
+              <Text style={{ color: C.dim }}>Skin: </Text>
+              {REVEAL_SKINS.find(s => s.id === composeRevealSkin)?.emoji} {REVEAL_SKINS.find(s => s.id === composeRevealSkin)?.label}
+            </Text>
+            <Text style={{ color: C.text }}>
               <Text style={{ color: C.dim }}>Reveal: </Text>
               {composeTailType === "CHAIN" ? (
                 <Text style={{ color: C.green }}>
@@ -2079,13 +2307,33 @@ export default function App() {
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: C.panel,
+              backgroundColor: (() => {
+                const skin = REVEAL_SKINS.find(s => s.id === (activeTail?.revealSkin || "default")) || REVEAL_SKINS[0];
+                return skin.gradient[0];
+              })(),
               borderRadius: 22,
-              borderWidth: 1,
-              borderColor: C.border,
+              borderWidth: 2,
+              borderColor: (() => {
+                const skin = REVEAL_SKINS.find(s => s.id === (activeTail?.revealSkin || "default")) || REVEAL_SKINS[0];
+                return skin.accent + "60";
+              })(),
               overflow: "hidden",
             }}
           >
+            {/* Skin glow */}
+            {(() => {
+              const skin = REVEAL_SKINS.find(s => s.id === (activeTail?.revealSkin || "default")) || REVEAL_SKINS[0];
+              return (
+                <View style={{
+                  position: "absolute",
+                  top: -40, left: "20%", right: "20%",
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: skin.accent,
+                  opacity: 0.12,
+                }} />
+              );
+            })()}
             <View style={{ padding: 16 }}>
               <View
                 style={{
@@ -2094,15 +2342,20 @@ export default function App() {
                   alignItems: "center",
                 }}
               >
-                <Text
-                  style={{
-                    color: C.text,
-                    fontWeight: "900",
-                    fontSize: 16,
-                  }}
-                >
-                  {chainLayer ? "🔗 Chain Tail" : "🎯 Revealed"}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={{ fontSize: 18 }}>
+                    {(REVEAL_SKINS.find(s => s.id === (activeTail?.revealSkin || "default")) || REVEAL_SKINS[0]).emoji}
+                  </Text>
+                  <Text
+                    style={{
+                      color: C.text,
+                      fontWeight: "900",
+                      fontSize: 16,
+                    }}
+                  >
+                    {chainLayer ? "🔗 Chain Tail" : "🎯 Revealed"}
+                  </Text>
+                </View>
                 <Pressable
                   onPress={() => {
                     setRevealOpen(false);
@@ -2115,6 +2368,7 @@ export default function App() {
                   </Text>
                 </Pressable>
               </View>
+            </View>
 
               {/* Tail info (non-chain) */}
               {!chainLayer && (
@@ -2652,11 +2906,23 @@ export default function App() {
               </View>
             </ScrollView>
           </View>
+          <CategoryFilterBar
+            selected={categoryFilter}
+            userInterests={me?.interests || []}
+            onChange={setCategoryFilter}
+            colors={C}
+          />
           <TailHome
             me={me}
             publicCount={publicTails.length}
             inboxCount={inboxTails.length}
-            allTails={applyTypeFilter(feedTails)}
+            allTails={applyTypeFilter(
+              categoryFilter === "all" ? feedTails :
+              categoryFilter === "foryou" ? feedTails.filter(t =>
+                !t.categories?.length || t.categories.some(c => (me?.interests || []).includes(c))
+              ) :
+              feedTails.filter(t => t.categories?.includes(categoryFilter))
+            )}
             trending={applyTypeFilter(trending)}
             onOpenPublic={() => {
               setScreen("public");
@@ -3240,6 +3506,31 @@ export default function App() {
                   </Text>
                 </TouchableOpacity>
               )}
+            </View>
+
+            {/* Interests */}
+            <View
+              style={{
+                marginTop: 14,
+                backgroundColor: C.panel,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: C.border,
+                padding: 16,
+              }}
+            >
+              <Text style={{ color: C.muted, fontWeight: "900", marginBottom: 4 }}>
+                Your Interests
+              </Text>
+              <Text style={{ color: C.dim, fontSize: 11, marginBottom: 12 }}>
+                Used to personalise your feed. Pick up to 6.
+              </Text>
+              <CategoryPicker
+                selected={me?.interests || []}
+                onChange={(ids) => setMe(prev => ({ ...prev, interests: ids }))}
+                colors={C}
+                maxSelect={6}
+              />
             </View>
 
             {/* Theme */}
