@@ -210,7 +210,7 @@ const CategoryFilterBar = ({ selected, userInterests = [], onChange, colors: C }
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 4 }}
+      contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingVertical: 4, alignItems: "center" }}
     >
       {filterOptions.map((opt) => {
         const isSelected = selected === opt.id;
@@ -221,17 +221,18 @@ const CategoryFilterBar = ({ selected, userInterests = [], onChange, colors: C }
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: 5,
-              paddingVertical: 7,
-              paddingHorizontal: 13,
+              gap: 4,
+              paddingVertical: 6,
+              paddingHorizontal: 10,
               borderRadius: 20,
               borderWidth: 1,
+              flexShrink: 0,
               borderColor: isSelected ? C.brand : C.border,
               backgroundColor: isSelected ? "rgba(124,58,237,0.18)" : C.panel,
             }}
           >
-            <Text style={{ fontSize: 13 }}>{opt.icon}</Text>
-            <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 12 }}>
+            <Text style={{ fontSize: 12 }}>{opt.icon}</Text>
+            <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 11 }}>
               {opt.label}
             </Text>
           </TouchableOpacity>
