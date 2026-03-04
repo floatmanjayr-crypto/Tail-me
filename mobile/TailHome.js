@@ -150,13 +150,27 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
           }
         ]}
       >
-        {/* Glow bg */}
-        <View style={{
-          position: "absolute", top: -20, left: -20,
-          width: CARD_SIZE * 0.8, height: CARD_SIZE * 0.8,
-          borderRadius: CARD_SIZE,
-          backgroundColor: cfg.glow,
-        }} />
+        {/* Photo or glow bg */}
+        {tail?.mediaUrl ? (
+          <>
+            <Image
+              source={{ uri: tail.mediaUrl }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: 12 }}
+              resizeMode="cover"
+            />
+            <View style={{
+              position: "absolute", inset: 0, borderRadius: 12,
+              backgroundColor: "rgba(0,0,0,0.45)",
+            }} />
+          </>
+        ) : (
+          <View style={{
+            position: "absolute", top: -20, left: -20,
+            width: CARD_SIZE * 0.8, height: CARD_SIZE * 0.8,
+            borderRadius: CARD_SIZE,
+            backgroundColor: cfg.glow,
+          }} />
+        )}
 
         {/* Top row */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", zIndex: 1 }}>
@@ -187,7 +201,7 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
 
         {/* Bottom row */}
         <View style={{ zIndex: 1, gap: 3 }}>
-          <Text style={{ fontSize: 9, fontWeight: "800", color: "#94A3B8" }} numberOfLines={1}>
+          <Text style={{ fontSize: 9, fontWeight: "800", color: tail?.mediaUrl ? "#fff" : "#94A3B8" }} numberOfLines={1}>
             @{tail?.from || "user"}
           </Text>
           {/* Energy bar */}
@@ -341,6 +355,36 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
             <Text style={{ color: "#E5E7EB", fontSize: 14, lineHeight: 20 }}>
               "{tail.message}"
             </Text>
+          )}
+
+          {/* Coupon code */}
+          {expandedTail?.reveal?.kind === "coupon" && expandedTail?.reveal?.code && (
+            <View style={{
+              borderRadius: 12, borderWidth: 1.5,
+              borderColor: "#F59E0B", borderStyle: "dashed",
+              backgroundColor: "rgba(245,158,11,0.08)",
+              padding: 12, alignItems: "center",
+            }}>
+              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
+              <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
+                {expandedTail.reveal.code}
+              </Text>
+            </View>
+          )}
+
+          {/* Coupon code */}
+          {expandedTail?.reveal?.kind === "coupon" && expandedTail?.reveal?.code && (
+            <View style={{
+              borderRadius: 12, borderWidth: 1.5,
+              borderColor: "#F59E0B", borderStyle: "dashed",
+              backgroundColor: "rgba(245,158,11,0.08)",
+              padding: 12, alignItems: "center",
+            }}>
+              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
+              <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
+                {expandedTail.reveal.code}
+              </Text>
+            </View>
           )}
 
           {/* Stats row */}
@@ -535,10 +579,97 @@ export default function TailHome({
     onOpenTail?.({ url, id: expandedTail?.id });
   }, [expandedTail, onOpenTail]);
 
+  // Rich demo tails — shown when no real tails exist
+  const DEMO_TAILS = [
+    {
+      id: "demo_1", _type: "tail", tailType: "DROP",
+      from: "nike_official", message: "🔥 Flash Sale — 40% off Air Max",
+      url: "https://nike.com", catchLimit: 50, catchCount: 43,
+      expiresAt: Date.now() + 3600000 * 2,
+      energy: { current: 88 },
+      reveal: { kind: "coupon", code: "AIRMAX40" },
+      mediaUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
+    },
+    {
+      id: "demo_2", _type: "tail", tailType: "NOW",
+      from: "sara_eats", message: "Best ramen in NYC — catch for address 📍",
+      url: "https://maps.google.com", catchLimit: null, catchCount: 12,
+      expiresAt: Date.now() + 3600000 * 1,
+      energy: { current: 95 },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400",
+    },
+    {
+      id: "demo_3", _type: "tail", tailType: "LOOK",
+      from: "techdeals_", message: "AirPods Pro — lowest price ever 👀",
+      url: "https://amazon.com", catchLimit: null, catchCount: 7,
+      expiresAt: Date.now() + 3600000 * 6,
+      energy: { current: 72 },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1588423771073-b8903fead85b?w=400",
+    },
+    {
+      id: "demo_4", _type: "tail", tailType: "DROP",
+      from: "sneakerhead99", message: "Yeezy 350 — 3 pairs only 👟",
+      url: "https://stockx.com", catchLimit: 3, catchCount: 0,
+      expiresAt: Date.now() + 3600000 * 4,
+      energy: { current: 100 },
+      reveal: { kind: "coupon", code: "YZY3ONLY" },
+      mediaUrl: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=400",
+    },
+    {
+      id: "demo_5", _type: "tail", tailType: "GEO",
+      from: "rooftop_nyc", message: "Free rooftop event tonight 🌆",
+      url: "https://eventbrite.com", catchLimit: 100, catchCount: 67,
+      expiresAt: Date.now() + 3600000 * 5,
+      energy: { current: 81 },
+      geo: { distance: 800, distanceLabel: "0.8km" },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400",
+    },
+    {
+      id: "demo_6", _type: "tail", tailType: "CHAIN",
+      from: "cryptobro_", message: "Pass this on — free NFT mint 🔗",
+      url: "https://opensea.io", catchLimit: null, catchCount: 234,
+      expiresAt: Date.now() + 3600000 * 12,
+      energy: { current: 60 },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400",
+    },
+    {
+      id: "demo_7", _type: "tail", tailType: "NOW",
+      from: "fitlife_coach", message: "30min HIIT class — join live now 💪",
+      url: "https://zoom.us", catchLimit: 20, catchCount: 11,
+      expiresAt: Date.now() + 1800000,
+      energy: { current: 99 },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400",
+    },
+    {
+      id: "demo_8", _type: "tail", tailType: "LOOK",
+      from: "fashionweek", message: "Exclusive lookbook drop 👗",
+      url: "https://vogue.com", catchLimit: null, catchCount: 19,
+      expiresAt: Date.now() + 3600000 * 24,
+      energy: { current: 45 },
+      reveal: { kind: "url" },
+      mediaUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400",
+    },
+    {
+      id: "demo_9", _type: "tail", tailType: "DROP",
+      from: "concertdrops", message: "2x front row tickets 🎵",
+      url: "https://ticketmaster.com", catchLimit: 2, catchCount: 0,
+      expiresAt: Date.now() + 3600000 * 3,
+      energy: { current: 100 },
+      reveal: { kind: "coupon", code: "FRONT2ROW" },
+      mediaUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400",
+    },
+  ];
+
   // Build grid data — pad to multiple of 3 with placeholders
   const gridData = React.useMemo(() => {
-    const items = allTails.map(t => ({ ...t, _type: "tail" }));
-    const placeholderCount = allTails.length === 0 ? 9 : (3 - (items.length % 3)) % 3;
+    const source = allTails.length > 0 ? allTails : DEMO_TAILS;
+    const items = source.map(t => ({ ...t, _type: "tail" }));
+    const placeholderCount = (3 - (items.length % 3)) % 3;
     for (let i = 0; i < placeholderCount; i++) {
       items.push({ _type: "placeholder", id: `ph_${i}` });
     }
