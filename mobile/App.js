@@ -2959,12 +2959,6 @@ export default function App() {
       {/* HUB */}
       {screen === "hub" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
-          <CategoryFilterBar
-            selected={categoryFilter}
-            userInterests={me?.interests || []}
-            onChange={setCategoryFilter}
-            colors={C}
-          />
           <TailHome
             me={me}
             publicCount={publicTails.length}
@@ -2995,6 +2989,14 @@ export default function App() {
               socket.emit("get-public-feed");
               socket.emit("get-smart-feed", { interests: me?.interests || [] });
             }}
+            selectedCategory={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            categoryFilterOptions={[
+              { id: "foryou", icon: "✨", labelFull: "For You" },
+              ...TAIL_CATEGORIES.filter(cat => (me?.interests || []).includes(cat.id))
+                .map(cat => ({ id: cat.id, icon: cat.icon, labelFull: null })),
+              { id: "all", icon: "🌐", labelFull: "All" },
+            ]}
           />
         </View>
       )}

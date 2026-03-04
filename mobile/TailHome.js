@@ -492,6 +492,9 @@ export default function TailHome({
   onOpenEarnings,
   onOpenPro,
   onRefresh,
+  categoryFilterOptions = [],
+  selectedCategory = "foryou",
+  onCategoryChange,
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
