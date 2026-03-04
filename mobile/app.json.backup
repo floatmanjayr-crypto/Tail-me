@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "Tail Me",
+    "slug": "tailme",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#070A0F"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tailme.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Tail Me uses your location to show nearby drops and verify geo-locked catches.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Tail Me uses your location to notify you of nearby drops.",
+        "NSCameraUsageDescription": "Tail Me uses your camera to add photos to your tails.",
+        "NSPhotoLibraryUsageDescription": "Tail Me accesses your photo library to add media to tails and save share cards.",
+        "NSPhotoLibraryAddUsageDescription": "Tail Me saves your catch share cards to your photo library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#070A0F"
+      },
+      "package": "com.tailme.app",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Tail Me uses your location to find nearby drops and verify geo catches."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7C3AED",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "%(count)s Tail drops nearby"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tail Me accesses your photos to add media to tails.",
+          "cameraPermission": "Tail Me uses the camera to capture tail content."
+        }
+      ]
+    ],
+    "scheme": "tailme",
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#7C3AED",
+      "iosDisplayInForeground": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
