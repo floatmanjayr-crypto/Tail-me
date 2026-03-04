@@ -2993,8 +2993,7 @@ export default function App() {
             onCategoryChange={setCategoryFilter}
             categoryFilterOptions={[
               { id: "foryou", icon: "✨", labelFull: "For You" },
-              ...TAIL_CATEGORIES.filter(cat => (me?.interests || []).includes(cat.id))
-                .map(cat => ({ id: cat.id, icon: cat.icon, labelFull: null })),
+              ...TAIL_CATEGORIES.map(cat => ({ id: cat.id, icon: cat.icon, labelFull: null })),
               { id: "all", icon: "🌐", labelFull: "All" },
             ]}
           />
