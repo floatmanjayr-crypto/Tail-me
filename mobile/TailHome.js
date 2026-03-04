@@ -652,13 +652,13 @@ export default function TailHome({
             flexDirection: "row", alignItems: "center", gap: 6,
             paddingHorizontal: 12, paddingVertical: 6,
             borderRadius: 10,
-            backgroundColor: inboxTails > 0 ? "rgba(124,58,237,0.15)" : C.panel,
+            backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.15)" : C.panel,
             borderWidth: 1,
-            borderColor: inboxTails > 0 ? "#7C3AED" : C.border,
+            borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
           }}
         >
           <Text style={{ fontSize: 13 }}>📬</Text>
-          <Text style={{ color: inboxTails > 0 ? "#7C3AED" : C.muted, fontWeight: "900", fontSize: 12 }}>
+          <Text style={{ color: inboxCount > 0 ? "#7C3AED" : C.muted, fontWeight: "900", fontSize: 12 }}>
             {inboxCount > 0 ? `${inboxCount} inbox` : "Inbox"}
           </Text>
         </TouchableOpacity>
