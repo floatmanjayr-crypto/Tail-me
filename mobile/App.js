@@ -1,4 +1,4 @@
-/ ============================================
+
 // App.js — Tail Me (Final Merged v5)
 // ✅ All V2 original features preserved
 // ✅ All V1 new features added
@@ -312,6 +312,8 @@ export default function App() {
   const [composeGeoRadius, setComposeGeoRadius] = useState(2);
   const [composeGeoLocation, setComposeGeoLocation] = useState(null);
   const [composeCatchLimit, setComposeCatchLimit] = useState("10");
+  const [composeMonetizedUrl, setComposeMonetizedUrl] = useState("");
+  const [composeMonetizationType, setComposeMonetizationType] = useState("direct");
   const [composeCategories, setComposeCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("foryou");
   const [composeRevealSkin, setComposeRevealSkin] = useState("default");
@@ -852,6 +854,10 @@ export default function App() {
     setComposeGeoRadius(2);
     setComposeGeoLocation(null);
     setComposeCatchLimit("10");
+    setComposeMonetizedUrl("");
+    setComposeMonetizationType("direct");
+    setComposeMonetizedUrl("");
+    setComposeMonetizationType("direct");
     setComposeCategories([]);
     setComposeRevealSkin("default");
   }, []);
@@ -969,6 +975,27 @@ export default function App() {
         mediaType,
         title: "Tail",
         message: composeMessage.trim() || "",
+        monetization: {
+          contentUrl: url || null,
+          monetizedUrl: composeMonetizedUrl.trim() || url || null,
+          type: composeMonetizationType,
+          revenueGenerated: 0,
+          creatorEarnings: 0,
+          platformFee: 0,
+        },
+        analytics: {
+          impressions: 0,
+          clicks: 0,
+          opens: 0,
+          catches: 0,
+          conversions: 0,
+          engagementScore: 0,
+        },
+        energy: {
+          current: 100,
+          decayRate: 0.5,
+          lastUpdated: Date.now(),
+        },
         visibility: composerMode,
         recipients:
           composerMode === "private"
@@ -1454,6 +1481,70 @@ export default function App() {
             }}
           />
 
+
+          {/* Monetized URL */}
+          <View style={{
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: composeMonetizedUrl.trim() ? C.green : C.border,
+            backgroundColor: composeMonetizedUrl.trim() ? "rgba(34,197,94,0.05)" : "transparent",
+            padding: 12,
+            gap: 8,
+          }}>
+            <Text style={{ color: C.muted, fontWeight: "900", fontSize: 12 }}>
+              💰 Monetized Link (optional)
+            </Text>
+            <Text style={{ color: C.dim, fontSize: 11 }}>
+              Paste your affiliate or earning link. Catchers see your content link — this is what earns.
+            </Text>
+            <TextInput
+              value={composeMonetizedUrl}
+              onChangeText={setComposeMonetizedUrl}
+              placeholder="https://affiliate-link.com/..."
+              placeholderTextColor={C.dim}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                backgroundColor: C.bg,
+                borderWidth: 1,
+                borderColor: composeMonetizedUrl.trim() ? C.green : C.border,
+                color: C.text,
+                padding: 12,
+                borderRadius: 12,
+              }}
+            />
+            {/* Monetization type */}
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {[
+                { key: "direct",    label: "🔗 Direct",    desc: "Your link" },
+                { key: "affiliate", label: "💸 Affiliate", desc: "Commission" },
+                { key: "platform",  label: "⚡ Platform",  desc: "Tail-me deal" },
+              ].map(({ key, label, desc }) => {
+                const active = composeMonetizationType === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => setComposeMonetizationType(key)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: active ? C.green : C.border,
+                      backgroundColor: active ? "rgba(34,197,94,0.1)" : "transparent",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "900", color: active ? C.green : C.muted }}>
+                      {label}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: C.dim }}>{desc}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <TouchableOpacity
             onPress={pickMedia}
             style={{
@@ -2085,6 +2176,14 @@ export default function App() {
                 ""
               )}
             </Text>
+            <Text style={{ color: C.text }}>
+              <Text style={{ color: C.dim }}>Monetized: </Text>
+              {composeMonetizedUrl.trim() ? (
+                <Text style={{ color: C.green }}>✅ {composeMonetizationType} link set</Text>
+              ) : (
+                <Text style={{ color: C.dim }}>None (content link used)</Text>
+              )}
+            </Text>
           </View>
 
           {/* Sponsored toggle */}
@@ -2368,7 +2467,6 @@ export default function App() {
                   </Text>
                 </Pressable>
               </View>
-            </View>
 
               {/* Tail info (non-chain) */}
               {!chainLayer && (
@@ -2519,20 +2617,27 @@ export default function App() {
                     }}
                   >
                     <TouchableOpacity
-                      onPress={() => openOriginal(activeTail?.url)}
+                      onPress={() => {
+                        const url = activeTail?.monetization?.monetizedUrl || activeTail?.url;
+                        openOriginal(url);
+                        socket.emit("tail-analytics", {
+                          tailId: activeTail?.id,
+                          event: "click",
+                          userId: me?.username,
+                        });
+                      }}
                       style={{
                         flex: 1,
                         paddingVertical: 12,
                         borderRadius: 16,
                         borderWidth: 1,
-                        borderColor: C.border,
+                        borderColor: activeTail?.monetization?.monetizedUrl ? C.green : C.border,
+                        backgroundColor: activeTail?.monetization?.monetizedUrl ? "rgba(34,197,94,0.08)" : "transparent",
                         alignItems: "center",
                       }}
                     >
-                      <Text
-                        style={{ color: C.text, fontWeight: "900" }}
-                      >
-                        Open Link
+                      <Text style={{ color: activeTail?.monetization?.monetizedUrl ? C.green : C.text, fontWeight: "900" }}>
+                        {activeTail?.monetization?.monetizedUrl ? "💰 Open & Earn" : "Open Link"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity

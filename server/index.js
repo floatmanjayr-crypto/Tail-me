@@ -88,6 +88,91 @@ app.get("/share/:tailId", (req, res) => {
   });
 });
 
+
+// ── Resolve tail — smart monetized redirect ───────────
+app.get("/resolve/:tailId", (req, res) => {
+  const tail = tails.get(req.params.tailId);
+  const ref  = req.query.ref || "direct";
+
+  if (!tail || tail.expired || Date.now() > tail.expiresAt) {
+    return res.status(404).send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0d0d0f;color:#fff">
+        <h2>🦊 This tail has expired</h2>
+        <p>Download Tail Me to catch live drops</p>
+      </body></html>
+    `);
+  }
+
+  // Track click
+  const stats = analytics.get(tail.id) || { clicks:0, opens:0, catches:0, conversions:0, revenue:0 };
+  stats.clicks += 1;
+  analytics.set(tail.id, stats);
+
+  // Update tail analytics
+  tail.analytics = tail.analytics || {};
+  tail.analytics.clicks = (tail.analytics.clicks || 0) + 1;
+
+  // Emit real-time click event to tail creator
+  const sender = users.get(tail.from);
+  if (sender?.socketId) {
+    io.to(sender.socketId).emit("tail-click", {
+      tailId: tail.id,
+      clicks: tail.analytics.clicks,
+      ref,
+      ts: Date.now(),
+    });
+  }
+
+  // Resolve destination
+  const destination = tail.monetization?.monetizedUrl || tail.url;
+
+  if (!destination) {
+    return res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0d0d0f;color:#fff">
+        <h2>🦊 ${tail.title || "Tail"}</h2>
+        <p>${tail.message || "No link attached"}</p>
+      </body></html>
+    `);
+  }
+
+  // Log monetization type
+  const mType = tail.monetization?.type || "direct";
+  console.log(`💰 resolve ${tail.id} [${mType}] → ${destination.slice(0, 60)} (ref:${ref})`);
+
+  // Redirect
+  res.redirect(302, destination);
+});
+
+// ── Analytics endpoint — creator dashboard data ───────
+app.get("/analytics/:tailId", (req, res) => {
+  const tail  = tails.get(req.params.tailId);
+  const stats = analytics.get(req.params.tailId);
+  if (!tail) return res.status(404).json({ ok: false, error: "not found" });
+  res.json({
+    ok: true,
+    tailId: req.params.tailId,
+    from: tail.from,
+    title: tail.title,
+    tailType: tail.tailType,
+    monetizationType: tail.monetization?.type || "direct",
+    stats: {
+      clicks:      tail.analytics?.clicks      || 0,
+      catches:     tail.catchCount             || 0,
+      reactions:   tail.reactionCount          || 0,
+      impressions: tail.analytics?.impressions || 0,
+      conversions: stats?.conversions          || 0,
+      revenue:     stats?.revenue              || 0,
+      conversionRate: tail.catchCount > 0
+        ? ((stats?.conversions || 0) / tail.catchCount * 100).toFixed(1) + "%"
+        : "0%",
+    },
+    energy: tail.energy || { current: 100 },
+    createdAt: tail.timestamp,
+    expiresAt: tail.expiresAt,
+    timeLeft: Math.max(0, tail.expiresAt - Date.now()),
+  });
+});
+
 // ── Scrape preview endpoint (for testing) ─────────────────
 app.get("/scrape", async (req, res) => {
   const url = req.query.url;
@@ -117,6 +202,7 @@ const tails    = new Map(); // tailId   → tail object
 const sessions = new Map(); // tailId   → session object
 const catches  = new Map(); // username → catch[] (passport)
 const scrapeCache = new Map(); // url → { meta, cachedAt }
+const analytics  = new Map(); // tailId → { clicks, opens, catches, conversions, revenue }
 const rateLimits  = new Map(); // socketId → { count, window }
 
 // ═══════════════════════════════════════════════════════════
@@ -200,6 +286,15 @@ function publicView(tail, userLat, userLng) {
     expiresAt:    tail.expiresAt,
     expired:      tail.expired,
     mintNumber:   tail.mintNumbers?.[tail.caughtBy[0]] || null,
+    categories:   tail.categories  || [],
+    revealSkin:   tail.revealSkin  || "default",
+    monetization: tail.monetization ? {
+      type: tail.monetization.type,
+      hasMonetizedUrl: !!tail.monetization.monetizedUrl,
+      revenueGenerated: tail.monetization.revenueGenerated || 0,
+    } : null,
+    analytics:    tail.analytics   || {},
+    energy:       tail.energy      || { current: 100 },
   };
 }
 
@@ -454,8 +549,11 @@ io.on("connection", (socket) => {
     const feed = [...tails.values()]
       .filter(t => t.visibility === "public" && !t.expired && now < t.expiresAt)
       .map(t => {
-        const ageH = (now - t.timestamp) / 3600000;
-        const score = (t.catchCount + t.reactionCount * 0.5) / Math.pow(ageH + 1, 1.5);
+        const ageH   = (now - t.timestamp) / 3600000;
+        const energy = t.energy?.current || 100;
+        const score  = ((t.catchCount + t.reactionCount * 0.5) / Math.pow(ageH + 1, 1.5))
+          + (energy * 0.05)
+          + (t.analytics?.clicks || 0) * 0.1;
         return { tail: t, score };
       })
       .sort((a, b) => b.score - a.score)
@@ -538,8 +636,13 @@ io.on("connection", (socket) => {
       expired:      false,
       catchCount:   0,
       caughtBy:     [],
-      mintNumbers:  {},         // username → mint number
-      chainProgress: {},         // username → layerIndex
+      mintNumbers:  {},
+      chainProgress: {},
+      monetization: data?.monetization || { contentUrl: null, monetizedUrl: null, type: "direct", revenueGenerated: 0, creatorEarnings: 0, platformFee: 0 },
+      analytics:    data?.analytics    || { impressions: 0, clicks: 0, opens: 0, catches: 0, conversions: 0, engagementScore: 0 },
+      energy:       data?.energy       || { current: 100, decayRate: 0.5, lastUpdated: Date.now() },
+      categories:   data?.categories   || [],
+      revealSkin:   data?.revealSkin   || "default",
     };
 
     tails.set(tailId, tail);
@@ -802,6 +905,32 @@ io.on("connection", (socket) => {
     if (t) t.linkClicks = (t.linkClicks || 0) + 1;
   });
 
+  // ── TAIL ANALYTICS ───────────────────────────────────
+  socket.on("tail-analytics", ({ tailId, event, userId }) => {
+    const tail = tails.get(tailId);
+    if (!tail) return;
+    tail.analytics = tail.analytics || {};
+    if (event === "catch")  tail.analytics.catches     = (tail.analytics.catches     || 0) + 1;
+    if (event === "click")  tail.analytics.clicks      = (tail.analytics.clicks      || 0) + 1;
+    if (event === "open")   tail.analytics.opens       = (tail.analytics.opens       || 0) + 1;
+    if (event === "share")  tail.analytics.engagementScore = (tail.analytics.engagementScore || 0) + 2;
+    // Boost energy on engagement
+    if (tail.energy && ["catch","click","share"].includes(event)) {
+      tail.energy.current = Math.min(100, (tail.energy.current || 0) + 3);
+      tail.energy.lastUpdated = Date.now();
+    }
+    // Notify creator in real-time
+    const sender = users.get(tail.from);
+    if (sender?.socketId && tail.from !== userId) {
+      io.to(sender.socketId).emit("tail-analytics-update", {
+        tailId,
+        event,
+        analytics: tail.analytics,
+        energy: tail.energy,
+      });
+    }
+  });
+
   // ── CHAT ──────────────────────────────────────────────
   socket.on("tail-chat", ({ tailId, text }) => {
     const session = sessions.get(tailId);
@@ -857,6 +986,15 @@ setInterval(() => {
     }
   }
   if (n) console.log(`🧹 Cleaned ${n} tail(s). Active: ${tails.size}`);
+
+  // Decay energy on all active tails
+  for (const tail of tails.values()) {
+    if (tail.energy) {
+      const hoursSince = (now - (tail.energy.lastUpdated || tail.timestamp)) / 3600000;
+      tail.energy.current = Math.max(0, tail.energy.current - (tail.energy.decayRate * hoursSince));
+      tail.energy.lastUpdated = now;
+    }
+  }
 }, 60_000);
 
 // Cleanup rate limiter map every 5 min
