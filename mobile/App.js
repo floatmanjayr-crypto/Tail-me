@@ -1,4 +1,3 @@
-
 // App.js — Tail Me (Final Merged v5)
 // ✅ All V2 original features preserved
 // ✅ All V1 new features added
@@ -57,8 +56,6 @@ try {
 } catch {}
 
 // ── Constants ───────────────────────────────────────────
-const ALL_TAIL_TYPES = ["LOOK", "NOW", "DROP", "CHAIN", "GEO"];
-
 const DURATION_PRESETS = [
   { label: "1h",  amount: 1,  unit: "h" },
   { label: "6h",  amount: 6,  unit: "h" },
@@ -277,7 +274,6 @@ export default function App() {
   const [revealOpen, setRevealOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState("");
-  const [typeFilter, setTypeFilter] = useState("ALL");
 
   // Connection
   const [isConnected, setIsConnected] = useState(false);
@@ -1143,17 +1139,6 @@ export default function App() {
   );
 
   // ── Filters ───────────────────────────────────────────
-  const applyTypeFilter = useCallback(
-    (list) => {
-      const arr = Array.isArray(list) ? list : [];
-      if (typeFilter === "ALL") return arr;
-      return arr.filter(
-        (t) => String(t?.tailType || "LOOK").toUpperCase() === typeFilter
-      );
-    },
-    [typeFilter]
-  );
-
   const feedTails = smartFeed.length > 0 ? smartFeed : publicTails;
 
   const trending = useMemo(
@@ -2973,44 +2958,6 @@ export default function App() {
       {/* HUB */}
       {screen === "hub" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
-          <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                {["ALL", ...ALL_TAIL_TYPES].map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    onPress={() => setTypeFilter(t)}
-                    style={{
-                      paddingVertical: 7,
-                      paddingHorizontal: 14,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor:
-                        typeFilter === t ? C.brand : C.border,
-                      backgroundColor:
-                        typeFilter === t
-                          ? "rgba(124,58,237,0.18)"
-                          : "transparent",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color:
-                          typeFilter === t ? C.text : C.muted,
-                        fontWeight: "900",
-                        fontSize: 11,
-                      }}
-                    >
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
           <CategoryFilterBar
             selected={categoryFilter}
             userInterests={me?.interests || []}
@@ -3021,20 +2968,21 @@ export default function App() {
             me={me}
             publicCount={publicTails.length}
             inboxCount={inboxTails.length}
-            allTails={applyTypeFilter(
+            allTails={
               categoryFilter === "all" ? feedTails :
               categoryFilter === "foryou" ? feedTails.filter(t =>
                 !t.categories?.length || t.categories.some(c => (me?.interests || []).includes(c))
               ) :
               feedTails.filter(t => t.categories?.includes(categoryFilter))
-            )}
-            trending={applyTypeFilter(trending)}
+            }
+            trending={trending}
             onOpenPublic={() => {
               setScreen("public");
               socket.emit("get-public-feed");
             }}
             onOpenPrivate={() => setScreen("private")}
             onOpenTail={openTailCard}
+            onCatchTail={catchTail}
             colors={C}
             onReact={reactToTail}
             streak={streak}
@@ -3042,6 +2990,10 @@ export default function App() {
             isPro={isPro}
             onOpenEarnings={() => setScreen("earnings")}
             onOpenPro={() => setScreen("pro")}
+            onRefresh={() => {
+              socket.emit("get-public-feed");
+              socket.emit("get-smart-feed", { interests: me?.interests || [] });
+            }}
           />
         </View>
       )}
@@ -3074,44 +3026,11 @@ export default function App() {
               @{me.username}
             </Text>
           </View>
-          <View
-            style={{ flexDirection: "row", gap: 8, marginTop: 12 }}
-          >
-            {["ALL", ...ALL_TAIL_TYPES].map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTypeFilter(t)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor:
-                    typeFilter === t ? C.brand : C.border,
-                  backgroundColor:
-                    typeFilter === t
-                      ? "rgba(124,58,237,0.18)"
-                      : "transparent",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: typeFilter === t ? C.text : C.muted,
-                    fontWeight: "900",
-                    fontSize: 12,
-                  }}
-                >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
           <ScrollView
             style={{ marginTop: 12 }}
             showsVerticalScrollIndicator={false}
           >
-            {applyTypeFilter(publicTails).map((t, i) => (
+            {publicTails.map((t, i) => (
               <TailCard
                 key={t?.id ?? `pub-${i}`}
                 tail={t}
