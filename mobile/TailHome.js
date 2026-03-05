@@ -706,108 +706,91 @@ export default function TailHome({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Header */}
+      {/* ── Header: 🦊 Tail Me left | badges + avatar right ── */}
       <View style={{
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        flexDirection: "row",
-        alignItems: "center",
+        paddingHorizontal: 16, paddingVertical: 10,
+        flexDirection: "row", alignItems: "center",
         justifyContent: "space-between",
-        borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        borderBottomWidth: 1, borderBottomColor: C.border,
       }}>
-        <View>
-          <Text style={{ color: C.muted, fontSize: 11, fontWeight: "700" }}>Welcome back</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text style={{ color: C.text, fontWeight: "900", fontSize: 22 }}>
-              @{me?.username || "User"}
-            </Text>
-            {isPro && (
-              <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}>
-                <Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text>
-              </View>
-            )}
-          </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 24 }}>🦊</Text>
+          <Text style={{ color: C.text, fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
+          {isPro && (
+            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text>
+            </View>
+          )}
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {streak > 0 && (
-            <TouchableOpacity
-              onPress={onOpenEarnings}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 4,
-                paddingHorizontal: 10, paddingVertical: 5,
-                borderRadius: 10,
-                backgroundColor: "rgba(245,158,11,0.12)",
-                borderWidth: 1, borderColor: "rgba(245,158,11,0.25)",
-              }}
-            >
-              <Text style={{ fontSize: 12 }}>🔥</Text>
+            <TouchableOpacity onPress={onOpenEarnings}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4,
+                paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
+                backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.3)" }}>
+              <Text style={{ fontSize: 11 }}>🔥</Text>
               <Text style={{ color: "#F59E0B", fontWeight: "900", fontSize: 12 }}>{streak}</Text>
             </TouchableOpacity>
           )}
           {earnings > 0 && (
-            <TouchableOpacity
-              onPress={onOpenEarnings}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 4,
-                paddingHorizontal: 10, paddingVertical: 5,
-                borderRadius: 10,
-                backgroundColor: "rgba(34,197,94,0.1)",
-                borderWidth: 1, borderColor: "rgba(34,197,94,0.2)",
-              }}
-            >
+            <TouchableOpacity onPress={onOpenEarnings}
+              style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
+                backgroundColor: "rgba(34,197,94,0.1)", borderWidth: 1, borderColor: "rgba(34,197,94,0.25)" }}>
               <Text style={{ color: "#22C55E", fontWeight: "900", fontSize: 12 }}>${earnings.toFixed(2)}</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={onOpenPro}
-            style={{
-              width: 38, height: 38, borderRadius: 12,
-              backgroundColor: C.panel,
-              borderWidth: 1, borderColor: C.border,
-              alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>🦊</Text>
+          <TouchableOpacity onPress={onOpenPrivate}
+            style={{ width: 36, height: 36, borderRadius: 11,
+              backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C.panel,
+              borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
+              alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
+            {inboxCount > 0 && (
+              <View style={{ position: "absolute", top: -4, right: -4,
+                width: 15, height: 15, borderRadius: 8, backgroundColor: "#7C3AED",
+                alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>
+                  {inboxCount > 9 ? "9+" : inboxCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Inbox + public quick stats */}
-      <View style={{
-        flexDirection: "row",
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        gap: 8,
-      }}>
-        <TouchableOpacity
-          onPress={onOpenPrivate}
-          style={{
-            flexDirection: "row", alignItems: "center", gap: 6,
-            paddingHorizontal: 12, paddingVertical: 6,
-            borderRadius: 10,
-            backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.15)" : C.panel,
-            borderWidth: 1,
-            borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
-          }}
-        >
-          <Text style={{ fontSize: 13 }}>📬</Text>
-          <Text style={{ color: inboxCount > 0 ? "#7C3AED" : C.muted, fontWeight: "900", fontSize: 12 }}>
-            {inboxCount > 0 ? `${inboxCount} inbox` : "Inbox"}
-          </Text>
-        </TouchableOpacity>
-        <View style={{
-          flexDirection: "row", alignItems: "center", gap: 6,
-          paddingHorizontal: 12, paddingVertical: 6,
-          borderRadius: 10, backgroundColor: C.panel,
-          borderWidth: 1, borderColor: C.border,
-        }}>
-          <Text style={{ fontSize: 13 }}>🌐</Text>
-          <Text style={{ color: C.muted, fontWeight: "900", fontSize: 12 }}>
-            {publicCount} live
-          </Text>
-        </View>
-      </View>
+      {/* ── Category emoji chips ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 46 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}
+      >
+        {categoryFilterOptions.map((opt) => {
+          const isSelected = selectedCategory === opt.id;
+          return (
+            <TouchableOpacity
+              key={opt.id}
+              onPress={() => onCategoryChange?.(opt.id)}
+              style={{
+                minWidth: 32, height: 32,
+                paddingHorizontal: opt.labelFull ? 10 : 0,
+                borderRadius: 16, borderWidth: 1,
+                borderColor: isSelected ? C.brand : C.border,
+                backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C.panel,
+                alignItems: "center", justifyContent: "center",
+                flexDirection: "row", gap: 3,
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
+              {opt.labelFull && (
+                <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 11 }}>
+                  {opt.labelFull}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {/* Grid */}
       <FlatList
