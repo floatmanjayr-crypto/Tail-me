@@ -1022,3 +1022,64 @@ httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`📁 Uploads: ${uploadDir}`);
   console.log(`📲 Push: ${expo ? "enabled" : "disabled (install expo-server-sdk)"}`);
 });
+// ============================================
+// FOLLOW SYSTEM
+// ============================================
+const following = new Map(); // username → Set of usernames they follow
+
+function getFollowing(username) {
+  if (!following.has(username)) following.set(username, new Set());
+  return following.get(username);
+}
+
+// Expose on socket
+io.on("connection", (socket) => {
+  // These piggyback on the existing connection — we add new handlers
+  // by listening on the same socket inside this block
+
+  socket.on("follow-user", ({ target }) => {
+    const me = socket.username;
+    if (!me || !target || me === target) return;
+    getFollowing(me).add(target);
+    socket.emit("follow-updated", {
+      following: [...getFollowing(me)],
+    });
+    // Notify target they got a follower
+    const targetSocket = [...io.sockets.sockets.values()]
+      .find(s => s.username === target);
+    if (targetSocket) {
+      targetSocket.emit("new-follower", { from: me });
+    }
+    console.log(`👥 ${me} followed ${target}`);
+  });
+
+  socket.on("unfollow-user", ({ target }) => {
+    const me = socket.username;
+    if (!me || !target) return;
+    getFollowing(me).delete(target);
+    socket.emit("follow-updated", {
+      following: [...getFollowing(me)],
+    });
+    console.log(`👋 ${me} unfollowed ${target}`);
+  });
+
+  socket.on("get-following", () => {
+    const me = socket.username;
+    if (!me) return;
+    socket.emit("follow-updated", {
+      following: [...getFollowing(me)],
+    });
+  });
+
+  socket.on("get-following-feed", () => {
+    const me = socket.username;
+    if (!me) return;
+    const myFollowing = getFollowing(me);
+    const feed = [...tails.values()]
+      .filter(t => !t.expired && myFollowing.has(t.from))
+      .sort((a, b) => (b.energy?.current || 100) - (a.energy?.current || 100))
+      .slice(0, 30)
+      .map(publicView);
+    socket.emit("following-feed", feed);
+  });
+});

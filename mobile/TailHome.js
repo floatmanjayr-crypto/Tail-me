@@ -503,13 +503,14 @@ const SpotlightBar = ({ username, tailCount, onClose, colors: C }) => {
         <Text style={{ color: C.muted, fontSize: 10 }}>{tailCount} active tail{tailCount !== 1 ? "s" : ""} highlighted</Text>
       </View>
       <TouchableOpacity
-        onPress={onClose}
+        onPress={() => onFollowUser?.(username)}
         style={{
           paddingHorizontal: 12, paddingVertical: 6,
-          borderRadius: 10, backgroundColor: "#7C3AED",
+          borderRadius: 10, backgroundColor: following.includes(username) ? "rgba(124,58,237,0.2)" : "#7C3AED",
+          borderWidth: 1, borderColor: "#7C3AED",
         }}
       >
-        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 11 }}>Follow</Text>
+        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 11 }}>{following.includes(username) ? "✓ Following" : "Follow"}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onClose} hitSlop={10}>
         <Text style={{ color: C.dim, fontWeight: "900" }}>✕</Text>
@@ -540,6 +541,9 @@ export default function TailHome({
   categoryFilterOptions = [],
   selectedCategory = "foryou",
   onCategoryChange,
+  following = [],
+  followingFeed = [],
+  onFollowUser,
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
@@ -668,7 +672,9 @@ export default function TailHome({
 
   // Build grid data — pad to multiple of 3 with placeholders
   const gridData = React.useMemo(() => {
-    const source = allTails.length > 0 ? allTails : DEMO_TAILS;
+    const source = selectedCategory === "following"
+      ? (followingFeed.length > 0 ? followingFeed : DEMO_TAILS)
+      : allTails.length > 0 ? allTails : DEMO_TAILS;
     const items = source.map(t => ({ ...t, _type: "tail" }));
     const placeholderCount = (3 - (items.length % 3)) % 3;
     for (let i = 0; i < placeholderCount; i++) {

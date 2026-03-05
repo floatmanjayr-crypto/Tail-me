@@ -254,6 +254,8 @@ export default function App() {
 
   // Core
   const [streak, setStreak] = useState(0);
+  const [following, setFollowing] = useState([]);
+  const [followingFeed, setFollowingFeed] = useState([]);
   const [earnings, setEarnings] = useState(0);
   const [isPro, setIsPro] = useState(false);
   const [tailStats, setTailStats] = useState([]);
@@ -615,6 +617,7 @@ export default function App() {
         setScreen("hub");
         socket.emit("get-smart-feed");
         socket.emit("get-public-feed");
+      socket.emit("get-following");
         socket.emit("get-passport", { username: u });
         if (userLocation) {
           socket.emit("get-geo-feed", {
@@ -752,6 +755,15 @@ export default function App() {
     },
     [userLocation, isPro, showToast]
   );
+
+  const followUser = useCallback((username) => {
+    if (!username) return;
+    if (following.includes(username)) {
+      socket.emit("unfollow-user", { target: username });
+    } else {
+      socket.emit("follow-user", { target: username });
+    }
+  }, [following]);
 
   const reactToTail = useCallback((tailId, emoji) => {
     console.log("📤 Reacting to tail:", tailId, emoji);
@@ -2988,11 +3000,16 @@ export default function App() {
             onRefresh={() => {
               socket.emit("get-public-feed");
               socket.emit("get-smart-feed", { interests: me?.interests || [] });
+              socket.emit("get-following-feed");
             }}
+            following={following}
+            followingFeed={followingFeed}
+            onFollowUser={followUser}
             selectedCategory={categoryFilter}
             onCategoryChange={setCategoryFilter}
             categoryFilterOptions={[
               { id: "foryou", icon: "✨", labelFull: "For You" },
+              { id: "following", icon: "👥", labelFull: "Following" },
               ...TAIL_CATEGORIES.map(cat => ({ id: cat.id, icon: cat.icon, labelFull: null })),
               { id: "all", icon: "🌐", labelFull: "All" },
             ]}
