@@ -24,6 +24,12 @@ const fs         = require("fs");
 const https      = require("https");
 const http       = require("http");
 const { URL }    = require("url");
+const {
+  SEED_TAILS, BOT_ACCOUNTS, TIERS,
+  checkAffiliateLimit, recordAffiliateCreated,
+  recordAffiliateExpired, recordAffiliateConversion,
+  setUserTier, getAffiliateLimitInfo, webRevealPage,
+} = require("./affiliate");
 
 // ── Optional: Expo server SDK (install: npm i expo-server-sdk) ──
 let Expo;
@@ -204,6 +210,111 @@ const catches  = new Map(); // username → catch[] (passport)
 const scrapeCache = new Map(); // url → { meta, cachedAt }
 const analytics  = new Map(); // tailId → { clicks, opens, catches, conversions, revenue }
 const rateLimits  = new Map(); // socketId → { count, window }
+
+// ── Seed bot accounts + affiliate tails ──────────────────
+function seedAffiliateTails() {
+  // Register bot accounts
+  BOT_ACCOUNTS.forEach(bot => {
+    if (!users.has(bot.username)) {
+      users.set(bot.username, {
+        socketId: null,
+        username: bot.username,
+        displayName: bot.displayName,
+        isBot: true,
+        tier: "verified",
+        interests: [],
+      });
+    }
+  });
+
+  // Seed affiliate tails
+  SEED_TAILS.forEach(seed => {
+    if (tails.has(seed.id)) return; // already seeded
+    const now = Date.now();
+    tails.set(seed.id, {
+      id: seed.id,
+      from: seed.from,
+      tailType: seed.tailType,
+      title: seed.title,
+      message: seed.message,
+      mediaUrl: seed.mediaUrl,
+      url: seed.affiliateUrl,
+      affiliateUrl: seed.affiliateUrl,
+      isAffiliate: true,
+      catchLimit: seed.catchLimit,
+      catchCount: 0,
+      caughtBy: [],
+      categories: seed.categories || [],
+      reveal: seed.reveal,
+      reactions: {},
+      reactionCount: 0,
+      timestamp: now,
+      expiresAt: now + (seed.expiryHours * 3600000),
+      expired: false,
+      visibility: "public",
+      monetization: {
+        type: "affiliate",
+        contentUrl: seed.affiliateUrl,
+        monetizedUrl: seed.affiliateUrl,
+        revenueGenerated: 0,
+        creatorEarnings: 0,
+        platformFee: 0,
+      },
+      analytics: { impressions: 0, clicks: 0, opens: 0, catches: 0, conversions: 0, webViews: 0 },
+      energy: { current: 100, decayRate: 0.5, lastUpdated: now },
+      meta: { title: seed.title, description: seed.message, image: seed.mediaUrl },
+    });
+    console.log(\`🌱 Seeded affiliate tail: \${seed.id} from @\${seed.from}\`);
+  });
+}
+
+// Seed on startup
+seedAffiliateTails();
+
+// Re-seed expired affiliate tails every hour
+setInterval(() => {
+  SEED_TAILS.forEach(seed => {
+    const existing = tails.get(seed.id);
+    if (!existing || existing.expired || Date.now() > existing.expiresAt) {
+      tails.delete(seed.id);
+      const now = Date.now();
+      tails.set(seed.id, {
+        id: seed.id,
+        from: seed.from,
+        tailType: seed.tailType,
+        title: seed.title,
+        message: seed.message,
+        mediaUrl: seed.mediaUrl,
+        url: seed.affiliateUrl,
+        affiliateUrl: seed.affiliateUrl,
+        isAffiliate: true,
+        catchLimit: seed.catchLimit,
+        catchCount: 0,
+        caughtBy: [],
+        categories: seed.categories || [],
+        reveal: seed.reveal,
+        reactions: {},
+        reactionCount: 0,
+        timestamp: now,
+        expiresAt: now + (seed.expiryHours * 3600000),
+        expired: false,
+        visibility: "public",
+        monetization: {
+          type: "affiliate",
+          contentUrl: seed.affiliateUrl,
+          monetizedUrl: seed.affiliateUrl,
+          revenueGenerated: 0,
+          creatorEarnings: 0,
+          platformFee: 0,
+        },
+        analytics: { impressions: 0, clicks: 0, opens: 0, catches: 0, conversions: 0, webViews: 0 },
+        energy: { current: 100, decayRate: 0.5, lastUpdated: now },
+        meta: { title: seed.title, description: seed.message, image: seed.mediaUrl },
+      });
+      console.log(\`♻️  Re-seeded: \${seed.id}\`);
+    }
+  });
+}, 3600000);
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -495,6 +606,84 @@ async function notifyNearbyUsers(tail) {
   return tokens.length;
 }
 
+// ── Tail web reveal page ──────────────────────────────────
+app.get("/t/:tailId", (req, res) => {
+  const tail = tails.get(req.params.tailId);
+  if (!tail) {
+    return res.status(404).send(`<!DOCTYPE html><html><body style="background:#070A0F;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column">
+      <div style="font-size:48px">🦊</div>
+      <h2 style="margin:16px 0 8px">Tail not found</h2>
+      <p style="color:#64748B">This tail may have expired or been removed.</p>
+    </body></html>`);
+  }
+  // Track web view
+  const a = tail.analytics || {};
+  a.webViews = (a.webViews || 0) + 1;
+  tail.analytics = a;
+  res.send(webRevealPage({
+    ...tail,
+    isFull: tail.catchLimit != null && tail.catchCount >= tail.catchLimit,
+  }));
+});
+
+// ── User profile page ──────────────────────────────────────
+app.get("/@:username", (req, res) => {
+  const username = req.params.username;
+  const userTails = [...tails.values()]
+    .filter(t => t.from === username && !t.expired)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 20);
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>@${username} on Tail Me</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#070A0F;font-family:-apple-system,sans-serif;color:#E5E7EB;padding:24px}
+    .header{text-align:center;padding:32px 0 24px}
+    .avatar{width:72px;height:72px;border-radius:20px;background:#7C3AED;
+      display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px}
+    .username{font-size:22px;font-weight:900}
+    .meta{color:#64748B;font-size:13px;margin-top:4px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:500px;margin:0 auto}
+    .tail-card{aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;cursor:pointer;
+      border:1.5px solid #1E293B;background:#0D1220;text-decoration:none;display:block}
+    .tail-img{width:100%;height:100%;object-fit:cover}
+    .tail-overlay{position:absolute;bottom:0;left:0;right:0;padding:6px;
+      background:linear-gradient(transparent,rgba(0,0,0,0.8))}
+    .tail-type{font-size:9px;font-weight:900;color:#fff}
+    .logo{text-align:center;margin-top:32px;color:#64748B;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="avatar">🦊</div>
+    <div class="username">@${username}</div>
+    <div class="meta">${userTails.length} active tail${userTails.length !== 1 ? "s" : ""}</div>
+  </div>
+  <div class="grid">
+    ${userTails.map(t => `
+      <a class="tail-card" href="/t/${t.id}">
+        ${t.mediaUrl ? `<img class="tail-img" src="${t.mediaUrl}"/>` : ""}
+        <div class="tail-overlay">
+          <div class="tail-type">${t.tailType || "LOOK"}</div>
+        </div>
+      </a>
+    `).join("")}
+  </div>
+  <div class="logo">🦊 Tail Me — Catch moments, don't scroll.</div>
+</body>
+</html>`;
+  res.send(html);
+});
+
+// ── Affiliate limit check endpoint ────────────────────────
+app.get("/affiliate/limits/:username", (req, res) => {
+  res.json(getAffiliateLimitInfo(req.params.username));
+});
+
 // ═══════════════════════════════════════════════════════════
 // SOCKET.IO EVENT HANDLERS
 // ═══════════════════════════════════════════════════════════
@@ -599,6 +788,19 @@ io.on("connection", (socket) => {
   // ── SEND TAIL ─────────────────────────────────────────
   socket.on("send-tail", async (data) => {
     const from = socket.username || "unknown";
+
+    // Check affiliate limits if this tail has a monetized URL
+    if (data.monetization?.monetizedUrl) {
+      const limitCheck = checkAffiliateLimit(from);
+      if (!limitCheck.ok) {
+        const limitInfo = getAffiliateLimitInfo(from);
+        socket.emit("affiliate-limit-reached", {
+          reason: limitCheck.reason,
+          ...limitInfo,
+        });
+        return;
+      }
+    }
 
     // Rate limit
     if (!checkRate(socket.id)) {
