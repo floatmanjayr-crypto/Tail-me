@@ -37,6 +37,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CatchTailModal from "./CatchTailModal";
 import TailHome from "./TailHome";
 import OnboardingScreen from "./OnboardingScreen";
+import ComposerModal from "./ComposerModal";
 import TailCard from "./TailCard";
 import EarningsScreen from "./EarningsScreen";
 import ProScreen from "./ProScreen";
@@ -1114,6 +1115,76 @@ export default function App() {
   };
 
   // ── Send chain tail (with guard) ──────────────────────
+  // ── New fast composer send — accepts payload from ComposerModal ──
+  const sendTailPayload = useCallback(async (payload) => {
+    if (sendingRef.current || isSending) return;
+    sendingRef.current = true;
+    setIsSending(true);
+    const reset = () => { sendingRef.current = false; setIsSending(false); };
+
+    if (!socket.connected) {
+      Alert.alert("Not Connected", "Cannot connect to server.");
+      reset(); return;
+    }
+
+    try {
+      const tailId = `tail_${Date.now()}_${Math.random().toString(36).slice(2,10)}`;
+      const now = Date.now();
+      const DURATION = { m: 60000, h: 3600000, d: 86400000 };
+      const ttl = (parseInt(payload.expiryAmount) || 24)
+        * (DURATION[payload.expiryUnit] || DURATION.h);
+
+      const tailData = {
+        id: tailId,
+        from: me?.username || "unknown",
+        tailType: payload.tailType || "LOOK",
+        url: payload.url || null,
+        message: payload.message || "",
+        visibility: payload.visibility || "public",
+        recipients: payload.recipients || [],
+        catchLimit: payload.catchLimit || null,
+        categories: payload.categories || [],
+        reveal: payload.reveal || null,
+        monetization: payload.monetization || null,
+        expiryAmount: parseInt(payload.expiryAmount) || 24,
+        expiryUnit: payload.expiryUnit || "h",
+        timestamp: now,
+        expiresAt: now + ttl,
+        energy: { current: 100, decayRate: 0.5, lastUpdated: now },
+        analytics: { impressions: 0, clicks: 0, opens: 0, catches: 0 },
+      };
+
+      console.log("🚀 Sending tail payload:", tailData.tailType, tailData.id);
+      socket.emit("send-tail", tailData);
+
+      socket.once("tail-sent", (res) => {
+        reset();
+        if (res?.ok) {
+          setComposerOpen(false);
+          showToast("🦊 Tail sent!");
+          socket.emit("get-public-feed");
+          socket.emit("get-smart-feed", { interests: me?.interests || [] });
+        } else {
+          Alert.alert("Send Failed", res?.error || "Try again.");
+        }
+      });
+
+      // Timeout fallback
+      setTimeout(() => {
+        if (sendingRef.current) {
+          reset();
+          setComposerOpen(false);
+          showToast("🦊 Tail sent!");
+        }
+      }, 4000);
+
+    } catch (err) {
+      console.error("Send error:", err);
+      Alert.alert("Error", err.message);
+      reset();
+    }
+  }, [isSending, me, socket]);
+
   const sendChainTail = useCallback(
     ({ layers }) => {
       if (!layers?.length) return;
@@ -2687,106 +2758,21 @@ export default function App() {
       </Modal>
 
       {/* COMPOSER MODAL */}
-      <Modal
+      <ComposerModal
         visible={composerOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          if (!isSending) setComposerOpen(false);
+        onClose={() => {
+          if (!isSending) {
+            setComposerOpen(false);
+            setComposerStep(1);
+          }
         }}
-        statusBarTranslucent
-      >
-        <Pressable
-          onPress={() => {
-            if (!isSending) setComposerOpen(false);
-          }}
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: C.panel,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              borderWidth: 1,
-              borderColor: C.border,
-              maxHeight: "90%",
-            }}
-          >
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ padding: 18 }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 18,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: C.text,
-                        fontWeight: "900",
-                        fontSize: 17,
-                      }}
-                    >
-                      Send a Tail
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        if (!isSending) {
-                          setComposerOpen(false);
-                          resetComposer();
-                        }
-                      }}
-                      hitSlop={10}
-                    >
-                      <Text
-                        style={{ color: C.muted, fontWeight: "900" }}
-                      >
-                        {isSending ? "Sending..." : "Cancel"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      gap: 6,
-                      marginBottom: 20,
-                    }}
-                  >
-                    {[1, 2, 3].map((st) => (
-                      <View
-                        key={st}
-                        style={{
-                          flex: 1,
-                          height: 4,
-                          borderRadius: 2,
-                          backgroundColor:
-                            st <= composerStep ? C.brand : C.border,
-                        }}
-                      />
-                    ))}
-                  </View>
-                  {renderComposerStep()}
-                  <View style={{ height: 30 }} />
-                </ScrollView>
-              </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onSend={sendTailPayload}
+        colors={C}
+        isSending={isSending}
+        userLocation={userLocation}
+        me={me}
+        isPro={isPro}
+      />
 
       {/* WEB VIEWER */}
       <Modal
@@ -2997,7 +2983,7 @@ export default function App() {
           onComplete={handleOnboardingComplete}
           onOpenComposer={() => {
             handleOnboardingComplete([]);
-            setTimeout(() => setComposeOpen(true), 300);
+            setTimeout(() => setComposerOpen(true), 300);
           }}
           colors={C}
         />

@@ -817,11 +817,50 @@ export default function TailHome({
           />
         }
         ListEmptyComponent={
-          <View style={{ alignItems: "center", paddingTop: 60, gap: 8 }}>
-            <Text style={{ fontSize: 40 }}>🦊</Text>
-            <Text style={{ color: C.muted, fontWeight: "900", fontSize: 16 }}>No tails yet</Text>
-            <Text style={{ color: C.dim, fontSize: 13 }}>Be the first to send one</Text>
-          </View>
+          selectedCategory === "following" ? (
+            <View style={{ padding: 24, gap: 16 }}>
+              <Text style={{ color: C.text, fontWeight: "900", fontSize: 18, textAlign: "center" }}>
+                Follow creators 👥
+              </Text>
+              <Text style={{ color: C.muted, fontSize: 14, textAlign: "center", marginBottom: 8 }}>
+                Long press any tail in the grid to follow its creator
+              </Text>
+              {["tailme_drops","techdrops_","fooddeals_","fashiondrops_","fitdrops_"].map(u => (
+                <View key={u} style={{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  padding: 14, borderRadius: 16,
+                  backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
+                }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12,
+                    backgroundColor: "rgba(124,58,237,0.2)", alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ fontSize: 18 }}>🦊</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontWeight: "900", fontSize: 14 }}>@{u}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11 }}>Curated drops daily</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => onFollowUser?.(u)}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 7,
+                      borderRadius: 10,
+                      backgroundColor: following.includes(u) ? "rgba(124,58,237,0.2)" : "#7C3AED",
+                      borderWidth: 1, borderColor: "#7C3AED",
+                    }}>
+                    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 12 }}>
+                      {following.includes(u) ? "✓ Following" : "Follow"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ alignItems: "center", paddingTop: 60, gap: 8 }}>
+              <Text style={{ fontSize: 40 }}>🦊</Text>
+              <Text style={{ color: C.muted, fontWeight: "900", fontSize: 16 }}>No tails yet</Text>
+              <Text style={{ color: C.dim, fontSize: 13 }}>Be the first to send one</Text>
+            </View>
+          )
         }
       />
 
