@@ -36,6 +36,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import CatchTailModal from "./CatchTailModal";
 import TailHome from "./TailHome";
+import OnboardingScreen from "./OnboardingScreen";
 import TailCard from "./TailCard";
 import EarningsScreen from "./EarningsScreen";
 import ProScreen from "./ProScreen";
@@ -249,6 +250,7 @@ export default function App() {
   const systemScheme = useColorScheme();
   const [themePref, setThemePref] = useState("system");
   const [screen, setScreen] = useState("login");
+  const [hasOnboarded, setHasOnboarded] = useState(false);
   const [username, setUsername] = useState("");
   const [me, setMe] = useState(null);
 
@@ -347,6 +349,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        const onboarded = await AsyncStorage.getItem("tailme_has_onboarded");
+        if (onboarded === "true") setHasOnboarded(true);
         const v = await AsyncStorage.getItem("tailme_theme_pref");
         const s = await AsyncStorage.getItem("tailme_streak");
         const pro = await AsyncStorage.getItem("tailme_is_pro");
@@ -614,7 +618,12 @@ export default function App() {
       console.log("📥 Registration response:", res);
       if (res?.ok) {
         setMe({ username: u, interests: [] });
-        setScreen("hub");
+        const onboarded = await AsyncStorage.getItem("tailme_has_onboarded");
+        if (onboarded === "true") {
+          setScreen("hub");
+        } else {
+          setScreen("onboarding");
+        }
         socket.emit("get-smart-feed");
         socket.emit("get-public-feed");
       socket.emit("get-following");
@@ -755,6 +764,20 @@ export default function App() {
     },
     [userLocation, isPro, showToast]
   );
+
+  const handleOnboardingComplete = useCallback(async (interests) => {
+    if (interests?.length > 0) {
+      const updated = { ...meRef.current, interests };
+      setMe(updated);
+      socket.emit("update-interests", { interests });
+      await AsyncStorage.setItem("tailme_interests", JSON.stringify(interests));
+    }
+    await AsyncStorage.setItem("tailme_has_onboarded", "true");
+    setHasOnboarded(true);
+    setScreen("hub");
+    socket.emit("get-smart-feed", { interests: interests || [] });
+    socket.emit("get-public-feed");
+  }, []);
 
   const followUser = useCallback((username) => {
     if (!username) return;
@@ -2969,6 +2992,17 @@ export default function App() {
       )}
 
       {/* HUB */}
+      {screen === "onboarding" && me && (
+        <OnboardingScreen
+          onComplete={handleOnboardingComplete}
+          onOpenComposer={() => {
+            handleOnboardingComplete([]);
+            setTimeout(() => setComposeOpen(true), 300);
+          }}
+          colors={C}
+        />
+      )}
+
       {screen === "hub" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
           <TailHome
