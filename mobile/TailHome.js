@@ -359,7 +359,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
           )}
 
           {/* Coupon code */}
-          {expandedTail?.reveal?.kind === "coupon" && expandedTail?.reveal?.code && (
+          {tail?.reveal?.kind === "coupon" && tail?.reveal?.code && (
             <View style={{
               borderRadius: 12, borderWidth: 1.5,
               borderColor: "#F59E0B", borderStyle: "dashed",
@@ -368,13 +368,13 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
             }}>
               <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
               <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
-                {expandedTail.reveal.code}
+                {tail.reveal.code}
               </Text>
             </View>
           )}
 
           {/* Coupon code */}
-          {expandedTail?.reveal?.kind === "coupon" && expandedTail?.reveal?.code && (
+          {tail?.reveal?.kind === "coupon" && tail?.reveal?.code && (
             <View style={{
               borderRadius: 12, borderWidth: 1.5,
               borderColor: "#F59E0B", borderStyle: "dashed",
@@ -383,7 +383,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
             }}>
               <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
               <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
-                {expandedTail.reveal.code}
+                {tail.reveal.code}
               </Text>
             </View>
           )}
