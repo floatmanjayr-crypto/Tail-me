@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   FlatList,
+  ScrollView,
   Animated,
   Dimensions,
   RefreshControl,
