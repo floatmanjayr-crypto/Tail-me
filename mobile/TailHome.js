@@ -358,18 +358,73 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
             </Text>
           )}
 
-          {/* Coupon code */}
-          {tail?.reveal?.kind === "coupon" && tail?.reveal?.code && (
-            <View style={{
-              borderRadius: 12, borderWidth: 1.5,
-              borderColor: "#F59E0B", borderStyle: "dashed",
-              backgroundColor: "rgba(245,158,11,0.08)",
-              padding: 12, alignItems: "center",
-            }}>
-              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
-              <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
-                {tail.reveal.code}
-              </Text>
+          {/* ── Universal reveal ── */}
+          {tail?.reveal && (
+            <View style={{ borderRadius: 16, borderWidth: 1.5,
+              borderColor: `${cfg.color}40`, backgroundColor: `${cfg.color}08`,
+              padding: 16, alignItems: "center", gap: 8 }}>
+              {tail.reveal.kind === "coupon" && (
+                <>
+                  <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "900",
+                    textTransform: "uppercase", letterSpacing: 2 }}>Coupon Code</Text>
+                  <Text style={{ color: cfg.color, fontSize: 22, fontWeight: "900",
+                    letterSpacing: 3 }}>{tail.reveal.code}</Text>
+                </>
+              )}
+              {tail.reveal.kind === "message" && (
+                <>
+                  <Text style={{ fontSize: 24 }}>💬</Text>
+                  <Text style={{ color: "#E5E7EB", fontSize: 15, textAlign: "center",
+                    lineHeight: 22, fontStyle: "italic" }}>"{tail.reveal.text}"</Text>
+                </>
+              )}
+              {tail.reveal.kind === "emoji" && (
+                <>
+                  <Text style={{ fontSize: 64 }}>{tail.reveal.emoji}</Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>@{tail.from} reacted</Text>
+                </>
+              )}
+              {tail.reveal.kind === "gift" && (
+                <>
+                  <Text style={{ fontSize: 32 }}>💰</Text>
+                  <Text style={{ color: "#F43F8E", fontSize: 28, fontWeight: "900" }}>
+                    ${tail.reveal.amount}
+                  </Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>
+                    {tail.reveal.message || "A gift for you"}
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap",
+                    gap: 8, justifyContent: "center" }}>
+                    {(tail.reveal.paymentApps || ["cashapp","venmo"]).map(app => (
+                      <View key={app} style={{ paddingHorizontal: 12, paddingVertical: 6,
+                        borderRadius: 10, backgroundColor: "rgba(244,63,142,0.15)",
+                        borderWidth: 1, borderColor: "rgba(244,63,142,0.3)" }}>
+                        <Text style={{ color: "#F43F8E", fontWeight: "900", fontSize: 12 }}>
+                          {app === "cashapp" ? "💵 Cash App"
+                            : app === "venmo" ? "🔵 Venmo"
+                            : app === "paypal" ? "🅿️ PayPal"
+                            : "🍎 Apple Pay"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+              {tail.reveal.kind === "voice" && (
+                <>
+                  <Text style={{ fontSize: 40 }}>🎙</Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 13 }}>
+                    Voice note from @{tail.from}
+                  </Text>
+                </>
+              )}
+              {tail.reveal.kind === "url" && tail.reveal.url && (
+                <>
+                  <Text style={{ fontSize: 24 }}>🔗</Text>
+                  <Text style={{ color: cfg.color, fontSize: 13, fontWeight: "800" }}
+                    numberOfLines={1}>{tail.reveal.url}</Text>
+                </>
+              )}
             </View>
           )}
 
