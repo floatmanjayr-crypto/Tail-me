@@ -615,7 +615,7 @@ export default function App() {
     console.log("📤 Emitting register event");
     socket.emit("register", { username: u, pushToken });
 
-    socket.once("registration-complete", (res) => {
+    socket.once("registration-complete", async (res) => {
       console.log("📥 Registration response:", res);
       if (res?.ok) {
         setMe({ username: u, interests: [] });
