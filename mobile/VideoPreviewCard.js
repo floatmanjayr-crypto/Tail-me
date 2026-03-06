@@ -1,223 +1,201 @@
 // ============================================================
-// VideoPreviewCard.js — Silent looping preview in grid
-// ✅ Auto-plays when visible, pauses when off screen
-// ✅ Silent loop — sound only after catch
-// ✅ Fallback to image if no video
-// ✅ Shimmer while loading
-// ✅ Type badge + energy bar overlay
+// VideoPreviewCard.js — Real feed card, not gamified
+// Clean photo/video fill, minimal overlay
+// Just enough to intrigue — nothing that screams "app"
 // ============================================================
-import React, { useRef, useState, useCallback } from "react";
-import {
-  View, Text, TouchableOpacity, TouchableWithoutFeedback,
-  Animated, Image, Dimensions,
-} from "react-native";
+import React, { useRef, useState } from "react";
+import { View, Text, TouchableOpacity, Animated, Image, Dimensions } from "react-native";
 import { Video, ResizeMode } from "expo-av";
 
 const { width: SW } = Dimensions.get("window");
-const CARD_GAP = 2;
-const CARD_SIZE = (SW - 16 - CARD_GAP * 4) / 3;
+const COLS = 3;
+const GAP = 1.5;
+const CARD_SIZE = (SW - GAP * (COLS + 1)) / COLS;
 
-const TYPE_CONFIG = {
-  NOW:   { color: "#F59E0B", icon: "⚡",  label: "NOW"   },
-  DROP:  { color: "#EF4444", icon: "💧",  label: "DROP"  },
-  GEO:   { color: "#0EA5E9", icon: "📍",  label: "GEO"   },
-  CHAIN: { color: "#22C55E", icon: "🔗",  label: "CHAIN" },
-  LOOK:  { color: "#7C3AED", icon: "👀",  label: "LOOK"  },
-  GIFT:  { color: "#F43F8E", icon: "💰",  label: "GIFT"  },
+const TYPE_DOT = {
+  NOW:   "#F59E0B",
+  DROP:  "#EF4444",
+  GEO:   "#0EA5E9",
+  CHAIN: "#22C55E",
+  LOOK:  "#7C3AED",
+  GIFT:  "#F43F8E",
+};
+
+const TYPE_ICON = {
+  NOW:   "⚡",
+  DROP:  "🔴",
+  GEO:   "📍",
+  CHAIN: "🔗",
+  LOOK:  "👁",
+  GIFT:  "💰",
 };
 
 export default function VideoPreviewCard({
-  tail,
-  onTap,
-  onLongPress,
-  isHighlighted,
-  dimmed,
-  isVisible = true,
+  tail, onTap, onLongPress, isHighlighted, dimmed, isVisible = true,
 }) {
-  const videoRef = useRef(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const cfg = TYPE_CONFIG[tail?.tailType] || TYPE_CONFIG.LOOK;
-  const energy = tail?.energy?.current ?? 100;
+  const color = TYPE_DOT[tail?.tailType] || "#7C3AED";
+  const icon = TYPE_ICON[tail?.tailType] || "👁";
+  const hasVideo = tail?.previewUrl && tail.previewUrl.endsWith(".mp4") && !videoError;
+  const hasImage = tail?.mediaUrl || tail?.previewUrl;
 
-  // Shimmer animation
-  React.useEffect(() => {
-    if (!videoLoaded) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shimmerAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(shimmerAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [videoLoaded]);
+  const onLoad = () => {
+    setImgLoaded(true);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  };
 
-  // NOW pulse
-  React.useEffect(() => {
-    if (tail?.tailType === "NOW") {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.03, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [tail?.tailType]);
-
-  const hasVideo = tail?.previewUrl && !videoError;
-  const hasImage = tail?.mediaUrl;
-
-  // Spots left for DROP
   const spotsLeft = tail?.catchLimit != null
     ? Math.max(0, tail.catchLimit - (tail.catchCount || 0))
     : null;
 
+  const isAlmostGone = spotsLeft !== null && spotsLeft <= 2;
+  const isNow = tail?.tailType === "NOW";
+
   return (
-    <Animated.View style={{
-      transform: [{ scale: tail?.tailType === "NOW" ? pulseAnim : 1 }],
-      opacity: dimmed ? 0.3 : 1,
-    }}>
-      <TouchableOpacity
-        onPress={() => onTap?.(tail)}
-        onLongPress={() => onLongPress?.(tail)}
-        activeOpacity={0.92}
-        delayLongPress={400}
-        style={{
-          width: CARD_SIZE, height: CARD_SIZE,
-          borderRadius: 14, overflow: "hidden",
-          backgroundColor: "#0D1220",
-          borderWidth: isHighlighted ? 2 : 1,
-          borderColor: isHighlighted ? cfg.color : "#1E293B",
-        }}
-      >
-        {/* ── Video preview ── */}
-        {hasVideo && isVisible && (
-          <Video
-            ref={videoRef}
-            source={{ uri: tail.previewUrl }}
-            style={{ position: "absolute", inset: 0 }}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay={isVisible}
-            isLooping
-            isMuted
-            onLoad={() => setVideoLoaded(true)}
-            onError={() => setVideoError(true)}
-          />
-        )}
-
-        {/* ── Image fallback ── */}
-        {!hasVideo && hasImage && (
-          <Image
-            source={{ uri: tail.mediaUrl }}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-            resizeMode="cover"
-          />
-        )}
-
-        {/* ── Gradient fallback ── */}
-        {!hasVideo && !hasImage && (
-          <View style={{
-            position: "absolute", inset: 0,
-            backgroundColor: `${cfg.color}15`,
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <Text style={{ fontSize: 32, opacity: 0.4 }}>{cfg.icon}</Text>
-          </View>
-        )}
-
-        {/* ── Shimmer overlay while loading ── */}
-        {hasVideo && !videoLoaded && (
-          <Animated.View style={{
-            position: "absolute", inset: 0,
-            backgroundColor: "#0D1220",
-            opacity: shimmerAnim.interpolate({ inputRange: [0,1], outputRange: [0.9, 0.6] }),
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <Text style={{ fontSize: 28 }}>{cfg.icon}</Text>
-          </Animated.View>
-        )}
-
-        {/* ── Dark overlay ── */}
+    <TouchableOpacity
+      onPress={() => onTap?.(tail)}
+      onLongPress={() => onLongPress?.(tail)}
+      activeOpacity={0.95}
+      delayLongPress={400}
+      style={{
+        width: CARD_SIZE,
+        height: CARD_SIZE,
+        margin: GAP / 2,
+        borderRadius: 4,
+        overflow: "hidden",
+        backgroundColor: "#0a0a0a",
+        opacity: dimmed ? 0.25 : 1,
+        borderWidth: isHighlighted ? 2 : 0,
+        borderColor: isHighlighted ? color : "transparent",
+      }}
+    >
+      {/* ── Media ── */}
+      {hasVideo && isVisible ? (
+        <Video
+          source={{ uri: tail.previewUrl }}
+          style={{ position: "absolute", inset: 0 }}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay={isVisible}
+          isLooping
+          isMuted
+          onLoad={() => { setVideoLoaded(true); onLoad(); }}
+          onError={() => setVideoError(true)}
+        />
+      ) : hasImage ? (
+        <Animated.Image
+          source={{ uri: tail.mediaUrl || tail.previewUrl }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: fadeAnim }}
+          resizeMode="cover"
+          onLoad={onLoad}
+        />
+      ) : (
+        // No media — gradient placeholder
         <View style={{
           position: "absolute", inset: 0,
-          backgroundColor: hasVideo || hasImage ? "rgba(0,0,0,0.35)" : "transparent",
-        }} />
+          backgroundColor: "#111",
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <Text style={{ fontSize: 28, opacity: 0.2 }}>{icon}</Text>
+        </View>
+      )}
 
-        {/* ── Type badge ── */}
+      {/* ── Gradient bottom overlay ── */}
+      <View style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: CARD_SIZE * 0.5,
+        background: "transparent",
+        // Simulated gradient via nested views
+      }}>
+        <View style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: "100%",
+          backgroundColor: "rgba(0,0,0,0.45)",
+          opacity: 0.8,
+        }} />
+      </View>
+
+      {/* ── Username bottom left ── */}
+      <View style={{
+        position: "absolute", bottom: 6, left: 6, right: 24,
+      }}>
+        <Text style={{
+          color: "rgba(255,255,255,0.85)",
+          fontSize: 9.5, fontWeight: "700",
+          letterSpacing: 0.2,
+        }} numberOfLines={1}>
+          @{tail?.from}
+        </Text>
+      </View>
+
+      {/* ── Type dot bottom right ── */}
+      <View style={{
+        position: "absolute", bottom: 7, right: 6,
+        width: 7, height: 7, borderRadius: 4,
+        backgroundColor: color,
+        shadowColor: color, shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9, shadowRadius: 4,
+      }} />
+
+      {/* ── NOW live pulse top left ── */}
+      {isNow && (
         <View style={{
           position: "absolute", top: 6, left: 6,
           flexDirection: "row", alignItems: "center", gap: 3,
-          paddingHorizontal: 6, paddingVertical: 3,
-          borderRadius: 8, backgroundColor: `${cfg.color}30`,
-          borderWidth: 1, borderColor: `${cfg.color}50`,
+          backgroundColor: "rgba(0,0,0,0.55)",
+          paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
         }}>
-          <Text style={{ fontSize: 8 }}>{cfg.icon}</Text>
-          <Text style={{ color: cfg.color, fontSize: 8, fontWeight: "900" }}>
-            {cfg.label}
-          </Text>
+          <View style={{ width: 5, height: 5, borderRadius: 3,
+            backgroundColor: "#F59E0B" }} />
+          <Text style={{ color: "#F59E0B", fontSize: 8, fontWeight: "900" }}>LIVE</Text>
         </View>
+      )}
 
-        {/* ── Video indicator ── */}
-        {hasVideo && videoLoaded && (
-          <View style={{
-            position: "absolute", top: 6, right: 6,
-            width: 16, height: 16, borderRadius: 8,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <Text style={{ fontSize: 8 }}>▶</Text>
-          </View>
-        )}
-
-        {/* ── DROP spots left ── */}
-        {tail?.tailType === "DROP" && spotsLeft !== null && (
-          <View style={{
-            position: "absolute", top: 6, right: 6,
-            paddingHorizontal: 5, paddingVertical: 2,
-            borderRadius: 6, backgroundColor: "rgba(239,68,68,0.25)",
-            borderWidth: 1, borderColor: "rgba(239,68,68,0.5)",
-          }}>
-            <Text style={{ color: "#EF4444", fontSize: 8, fontWeight: "900" }}>
-              {spotsLeft} left
-            </Text>
-          </View>
-        )}
-
-        {/* ── From username ── */}
-        <View style={{ position: "absolute", bottom: 18, left: 6, right: 6 }}>
-          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 9,
-            fontWeight: "700" }} numberOfLines={1}>
-            @{tail?.from}
-          </Text>
-        </View>
-
-        {/* ── Energy bar ── */}
+      {/* ── Almost gone warning ── */}
+      {isAlmostGone && (
         <View style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          height: 3, backgroundColor: "rgba(0,0,0,0.3)",
+          position: "absolute", top: 6, right: 6,
+          backgroundColor: "rgba(239,68,68,0.85)",
+          paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
         }}>
-          <View style={{
-            height: 3, width: `${Math.max(2, energy)}%`,
-            backgroundColor: cfg.color,
-            borderRadius: 2,
-            opacity: 0.8,
-          }} />
+          <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>
+            {spotsLeft} left
+          </Text>
         </View>
+      )}
 
-        {/* ── Highlight checkmark ── */}
-        {isHighlighted && (
-          <View style={{
-            position: "absolute", bottom: 8, right: 6,
-            width: 18, height: 18, borderRadius: 9,
-            backgroundColor: cfg.color, alignItems: "center", justifyContent: "center",
-          }}>
-            <Text style={{ color: "#fff", fontSize: 10, fontWeight: "900" }}>✓</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </Animated.View>
+      {/* ── Gift indicator ── */}
+      {tail?.tailType === "GIFT" && (
+        <View style={{
+          position: "absolute", top: 6, left: 6,
+          backgroundColor: "rgba(244,63,142,0.85)",
+          paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
+        }}>
+          <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>💰 GIFT</Text>
+        </View>
+      )}
+
+      {/* ── Energy bar ── */}
+      <View style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 2.5,
+        backgroundColor: "rgba(0,0,0,0.2)",
+      }}>
+        <View style={{
+          height: 2.5,
+          width: `${Math.max(3, tail?.energy?.current ?? 100)}%`,
+          backgroundColor: color,
+          opacity: 0.75,
+        }} />
+      </View>
+
+      {/* ── Highlight ring ── */}
+      {isHighlighted && (
+        <View style={{
+          position: "absolute", inset: 0,
+          borderWidth: 2, borderColor: color, borderRadius: 4,
+        }} />
+      )}
+    </TouchableOpacity>
   );
 }
