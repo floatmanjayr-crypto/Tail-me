@@ -25,6 +25,7 @@ import {
   Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import VideoPreviewCard from "./VideoPreviewCard";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const CARD_GAP = 6;
@@ -604,6 +605,16 @@ export default function TailHome({
   const [expandedTail, setExpandedTail] = useState(null);
   const [highlightedUser, setHighlightedUser] = useState(null);
   const flatListRef = useRef(null);
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    const visible = {};
+    viewableItems.forEach(({ item }) => {
+      if (item?._type === "tail") visible[item.id] = true;
+    });
+    setVisibleCards(visible);
+  }).current;
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 30,
+  }).current;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
