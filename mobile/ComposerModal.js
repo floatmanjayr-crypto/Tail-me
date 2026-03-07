@@ -5,6 +5,7 @@
 // Advanced: affiliate, categories
 // ============================================================
 import React, { useState, useRef } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   View, Text, Modal, TouchableOpacity, TextInput,
   ScrollView, Animated, Pressable,
@@ -67,7 +68,9 @@ export default function ComposerModal({
   const [giftAmount, setGiftAmount] = useState("");
   const [giftPaymentApps, setGiftPaymentApps] = useState(["cashapp", "venmo"]);
   const [recipients, setRecipients] = useState("");
-  const [previewType, setPreviewType] = useState(null); // "video" | "image" | null
+  const [previewType, setPreviewType] = useState(null);
+  const [videoUri, setVideoUri] = useState(null);
+  const [videoThumb, setVideoThumb] = useState(null);
   const [mode, setMode] = useState("public");
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -81,9 +84,25 @@ export default function ComposerModal({
     setCategories([]); setShowAdvanced(false); setGiftAmount("");
     setGiftPaymentApps(["cashapp","venmo"]); setRecipients("");
     setPreviewType(null); setMode("public");
+    setVideoUri(null); setVideoThumb(null);
   };
 
   const handleClose = () => { reset(); onClose(); };
+
+  const pickVideo = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.7,
+      videoMaxDuration: 60,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      setVideoUri(asset.uri);
+      setPreviewType("video");
+    }
+  };
 
   const goStep2 = () => {
     Animated.timing(slideAnim, { toValue: -400, duration: 220, useNativeDriver: true }).start(() => {
@@ -138,6 +157,8 @@ export default function ComposerModal({
       categories,
       reveal: buildReveal(),
       previewType,
+      videoUri: videoUri || null,
+      thumbUri: videoThumb || null,
       monetization: monetizedUrl ? { type: "affiliate", monetizedUrl, contentUrl: url } : null,
       expiryAmount: parseInt(expiryAmount) || 24,
       expiryUnit,
@@ -264,33 +285,67 @@ export default function ComposerModal({
                     <Text style={{ color: C?.muted || "#64748B", fontWeight: "900", fontSize: 11,
                       textTransform: "uppercase", letterSpacing: 1 }}>Preview in grid</Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
-                      {[
-                        { id: "video", icon: "🎥", label: "Clip",  sub: "2-3 sec loop" },
-                        { id: "image", icon: "📸", label: "Photo", sub: "Static teaser" },
-                        { id: null,    icon: "✍️", label: "Text",  sub: "No media"     },
-                      ].map(opt => (
-                        <TouchableOpacity key={String(opt.id)} onPress={() => setPreviewType(opt.id)}
-                          style={{ flex: 1, padding: 12, borderRadius: 14, borderWidth: 1.5,
-                            alignItems: "center", gap: 3,
-                            borderColor: previewType === opt.id ? cfg.color : C?.border || "#1E293B",
-                            backgroundColor: previewType === opt.id ? `${cfg.color}15` : C?.panel2 || "#111827" }}>
-                          <Text style={{ fontSize: 22 }}>{opt.icon}</Text>
-                          <Text style={{ color: previewType === opt.id ? cfg.color : C?.muted || "#64748B",
-                            fontWeight: "800", fontSize: 11 }}>{opt.label}</Text>
-                          <Text style={{ color: C?.dim || "#334155", fontSize: 9 }}>{opt.sub}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    {previewType === "video" && (
-                      <View style={{ padding: 12, borderRadius: 12,
-                        backgroundColor: `${cfg.color}10`, borderWidth: 1,
-                        borderColor: `${cfg.color}30` }}>
-                        <Text style={{ color: C?.dim || "#334155", fontSize: 12, textAlign: "center" }}>
-                          💡 Best: reaction face, countdown, teaser cut.{"\n"}
-                          Silent, looping, 2-3 seconds. Creates curiosity.
+                      <TouchableOpacity onPress={pickVideo}
+                        style={{ flex: 1, padding: 14, borderRadius: 14, borderWidth: 1.5,
+                          alignItems: "center", gap: 4,
+                          borderColor: previewType === "video" ? cfg.color : C?.border || "#1E293B",
+                          backgroundColor: previewType === "video" ? `${cfg.color}15` : C?.panel2 || "#111827" }}>
+                        <Text style={{ fontSize: 24 }}>🎥</Text>
+                        <Text style={{ color: previewType === "video" ? cfg.color : C?.muted || "#64748B",
+                          fontWeight: "900", fontSize: 11 }}>Video</Text>
+                        <Text style={{ color: C?.dim || "#334155", fontSize: 9, textAlign: "center" }}>
+                          grid shows first 3s
                         </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={async () => {
+                          const r = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+                          if (!r.canceled) { setVideoThumb(r.assets[0].uri); setPreviewType("image"); }
+                        }}
+                        style={{ flex: 1, padding: 14, borderRadius: 14, borderWidth: 1.5,
+                          alignItems: "center", gap: 4,
+                          borderColor: previewType === "image" ? cfg.color : C?.border || "#1E293B",
+                          backgroundColor: previewType === "image" ? `${cfg.color}15` : C?.panel2 || "#111827" }}>
+                        <Text style={{ fontSize: 24 }}>📸</Text>
+                        <Text style={{ color: previewType === "image" ? cfg.color : C?.muted || "#64748B",
+                          fontWeight: "900", fontSize: 11 }}>Photo</Text>
+                        <Text style={{ color: C?.dim || "#334155", fontSize: 9, textAlign: "center" }}>
+                          static in grid
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setPreviewType(null); setVideoUri(null); }}
+                        style={{ flex: 1, padding: 14, borderRadius: 14, borderWidth: 1.5,
+                          alignItems: "center", gap: 4,
+                          borderColor: !previewType ? cfg.color : C?.border || "#1E293B",
+                          backgroundColor: !previewType ? `${cfg.color}15` : C?.panel2 || "#111827" }}>
+                        <Text style={{ fontSize: 24 }}>✍️</Text>
+                        <Text style={{ color: !previewType ? cfg.color : C?.muted || "#64748B",
+                          fontWeight: "900", fontSize: 11 }}>Text</Text>
+                        <Text style={{ color: C?.dim || "#334155", fontSize: 9, textAlign: "center" }}>
+                          no media
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {videoUri ? (
+                      <View style={{ borderRadius: 12, overflow: "hidden",
+                        borderWidth: 1.5, borderColor: cfg.color }}>
+                        <View style={{ padding: 12, backgroundColor: `${cfg.color}10`,
+                          flexDirection: "row", alignItems: "center", gap: 10 }}>
+                          <Text style={{ fontSize: 24 }}>🎥</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 12 }}>
+                              Video ready
+                            </Text>
+                            <Text style={{ color: C?.dim || "#334155", fontSize: 10, marginTop: 2 }}>
+                              First 3 seconds plays in grid. Full video reveals on catch.
+                            </Text>
+                          </View>
+                          <TouchableOpacity onPress={() => { setVideoUri(null); setPreviewType(null); }}>
+                            <Text style={{ color: C?.dim || "#334155", fontSize: 16 }}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    )}
+                    ) : null}
                   </View>
 
                   {/* Hook / message */}
