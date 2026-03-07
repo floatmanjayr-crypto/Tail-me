@@ -179,5 +179,4 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
           <Text style={{ fontSize: 16, lineHeight: 20, opacity: 0.85 }}>{cfg.icon}</Text>
         </View>
 
-        {/* Middle — empty */}
-        <View style={{ flex: 1, zIndex: 1 }} />
+        <View style={{ flex: 1, zIndex: 1 }}></View>
