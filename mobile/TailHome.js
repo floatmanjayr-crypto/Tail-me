@@ -286,17 +286,17 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
       <Animated.View
         style={{
           position: "absolute",
-          left: 0, right: 0, bottom: 0,
+          left: 14, right: 14, bottom: 16,
           transform: [{ translateY: Animated.add(translateY, panY) }],
-          borderTopLeftRadius: 32, borderTopRightRadius: 32,
+          borderRadius: 28,
           overflow: "hidden",
           backgroundColor: "#0D1220",
-          borderWidth: 1, borderColor: `${cfg.color}30`,
+          borderWidth: 1.5, borderColor: `${cfg.color}35`,
           shadowColor: cfg.color,
-          shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 24,
-          maxHeight: SH * 0.92,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          maxHeight: SH * 0.82,
         }}
         {...panResponder.panHandlers}
       >
@@ -304,7 +304,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
 
           {/* ── Full media (65% screen height) ── */}
           {hasMedia ? (
-            <View style={{ width: "100%", height: SH * 0.52, position: "relative" }}>
+            <View style={{ width: "100%", height: SH * 0.32, position: "relative" }}>
               <Image
                 source={{ uri: tail.mediaUrl || tail.meta?.image }}
                 style={{ width: "100%", height: "100%" }}
