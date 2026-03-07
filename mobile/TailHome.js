@@ -239,286 +239,351 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
   const translateY = useRef(new Animated.Value(SH)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
+  const [caught, setCaught] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200 }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 180 }),
       Animated.timing(bgOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   }, []);
 
   const close = () => {
     Animated.parallel([
-      Animated.timing(translateY, { toValue: SH, duration: 280, useNativeDriver: true }),
-      Animated.timing(bgOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: SH, duration: 260, useNativeDriver: true }),
+      Animated.timing(bgOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start(onClose);
   };
 
   const panResponder = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => g.dy > 8,
-    onPanResponderMove: (_, g) => {
-      if (g.dy > 0) panY.setValue(g.dy);
-    },
+    onMoveShouldSetPanResponder: (_, g) => g.dy > 10,
+    onPanResponderMove: (_, g) => { if (g.dy > 0) panY.setValue(g.dy); },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 80 || g.vy > 0.8) {
-        close();
-      } else {
-        Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
-      }
+      if (g.dy > 80 || g.vy > 0.8) close();
+      else Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
     },
   })).current;
 
   if (!tail) return null;
   const cfg = getType(tail.tailType);
   const tlText = timeLeft(tail.expiresAt);
-  const hasImage = tail.mediaUrl || tail.meta?.image;
+  const hasMedia = tail.mediaUrl || tail.meta?.image;
+  const spotsLeft = tail.catchLimit != null ? Math.max(0, tail.catchLimit - (tail.catchCount || 0)) : null;
+
+  const handleCatch = () => {
+    setCaught(true);
+    onCatch?.(tail);
+  };
 
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
       {/* Backdrop */}
-      <Animated.View
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.75)", opacity: bgOpacity }]}
-      >
-        <TouchableWithoutFeedback onPress={close}>
-          <View style={{ flex: 1 }} />
-        </TouchableWithoutFeedback>
+      <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.82)", opacity: bgOpacity }]}>
+        <TouchableWithoutFeedback onPress={close}><View style={{ flex: 1 }} /></TouchableWithoutFeedback>
       </Animated.View>
 
-      {/* Card */}
+      {/* Full card */}
       <Animated.View
         style={{
           position: "absolute",
-          left: 16, right: 16,
-          bottom: 20,
+          left: 0, right: 0, bottom: 0,
           transform: [{ translateY: Animated.add(translateY, panY) }],
-          borderRadius: 28,
+          borderTopLeftRadius: 32, borderTopRightRadius: 32,
           overflow: "hidden",
-          backgroundColor: cfg.gradient[0],
-          borderWidth: 1.5,
-          borderColor: `${cfg.color}60`,
+          backgroundColor: "#0D1220",
+          borderWidth: 1, borderColor: `${cfg.color}30`,
           shadowColor: cfg.color,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.4,
-          shadowRadius: 20,
-          elevation: 20,
+          shadowOffset: { width: 0, height: -8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 24,
+          maxHeight: SH * 0.92,
         }}
         {...panResponder.panHandlers}
       >
-        {/* Glow top */}
-        <View style={{
-          position: "absolute",
-          top: -40, left: "20%", right: "20%",
-          height: 80, borderRadius: 40,
-          backgroundColor: cfg.color, opacity: 0.12,
-        }} />
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-        {/* Drag handle */}
-        <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}>
-          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: `${cfg.color}50` }} />
-        </View>
-
-        {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={{ fontSize: 22 }}>{cfg.icon}</Text>
-            <View>
-              <Text style={{ color: "#fff", fontWeight: "900", fontSize: 15 }}>
-                {tail.tailType} Tail
-              </Text>
-              <Text style={{ color: "#94A3B8", fontSize: 11, fontWeight: "700" }}>
-                @{tail.from}
-              </Text>
-            </View>
-          </View>
-          <View style={{ alignItems: "flex-end", gap: 4 }}>
-            {tlText && (
-              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: `${cfg.color}20` }}>
-                <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "900" }}>⏱ {tlText}</Text>
-              </View>
-            )}
-            <TouchableOpacity onPress={close} hitSlop={10}>
-              <Text style={{ color: "#64748B", fontWeight: "900", fontSize: 12 }}>✕ Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Image */}
-        {hasImage && (
-          <Image
-            source={{ uri: tail.mediaUrl || tail.meta?.image }}
-            style={{ width: "100%", height: 160, marginBottom: 12 }}
-            resizeMode="cover"
-          />
-        )}
-
-        {/* Content */}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}>
-          {!!tail.message && (
-            <Text style={{ color: "#E5E7EB", fontSize: 14, lineHeight: 20 }}>
-              "{tail.message}"
-            </Text>
-          )}
-
-          {/* ── Universal reveal ── */}
-          {tail?.reveal && (
-            <View style={{ borderRadius: 16, borderWidth: 1.5,
-              borderColor: `${cfg.color}40`, backgroundColor: `${cfg.color}08`,
-              padding: 16, alignItems: "center", gap: 8 }}>
-              {tail.reveal.kind === "coupon" && (
-                <>
-                  <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "900",
-                    textTransform: "uppercase", letterSpacing: 2 }}>Coupon Code</Text>
-                  <Text style={{ color: cfg.color, fontSize: 22, fontWeight: "900",
-                    letterSpacing: 3 }}>{tail.reveal.code}</Text>
-                </>
-              )}
-              {tail.reveal.kind === "message" && (
-                <>
-                  <Text style={{ fontSize: 24 }}>💬</Text>
-                  <Text style={{ color: "#E5E7EB", fontSize: 15, textAlign: "center",
-                    lineHeight: 22, fontStyle: "italic" }}>"{tail.reveal.text}"</Text>
-                </>
-              )}
-              {tail.reveal.kind === "emoji" && (
-                <>
-                  <Text style={{ fontSize: 64 }}>{tail.reveal.emoji}</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>@{tail.from} reacted</Text>
-                </>
-              )}
-              {tail.reveal.kind === "gift" && (
-                <>
-                  <Text style={{ fontSize: 32 }}>💰</Text>
-                  <Text style={{ color: "#F43F8E", fontSize: 28, fontWeight: "900" }}>
-                    ${tail.reveal.amount}
-                  </Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>
-                    {tail.reveal.message || "A gift for you"}
-                  </Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap",
-                    gap: 8, justifyContent: "center" }}>
-                    {(tail.reveal.paymentApps || ["cashapp","venmo"]).map(app => (
-                      <View key={app} style={{ paddingHorizontal: 12, paddingVertical: 6,
-                        borderRadius: 10, backgroundColor: "rgba(244,63,142,0.15)",
-                        borderWidth: 1, borderColor: "rgba(244,63,142,0.3)" }}>
-                        <Text style={{ color: "#F43F8E", fontWeight: "900", fontSize: 12 }}>
-                          {app === "cashapp" ? "💵 Cash App"
-                            : app === "venmo" ? "🔵 Venmo"
-                            : app === "paypal" ? "🅿️ PayPal"
-                            : "🍎 Apple Pay"}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              )}
-              {tail.reveal.kind === "voice" && (
-                <>
-                  <Text style={{ fontSize: 40 }}>🎙</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 13 }}>
-                    Voice note from @{tail.from}
-                  </Text>
-                </>
-              )}
-              {tail.reveal.kind === "url" && tail.reveal.url && (
-                <>
-                  <Text style={{ fontSize: 24 }}>🔗</Text>
-                  <Text style={{ color: cfg.color, fontSize: 13, fontWeight: "800" }}
-                    numberOfLines={1}>{tail.reveal.url}</Text>
-                </>
-              )}
-            </View>
-          )}
-
-          {/* Coupon code */}
-          {tail?.reveal?.kind === "coupon" && tail?.reveal?.code && (
-            <View style={{
-              borderRadius: 12, borderWidth: 1.5,
-              borderColor: "#F59E0B", borderStyle: "dashed",
-              backgroundColor: "rgba(245,158,11,0.08)",
-              padding: 12, alignItems: "center",
-            }}>
-              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginBottom: 4 }}>COUPON CODE</Text>
-              <Text style={{ color: "#F59E0B", fontSize: 20, fontWeight: "900", letterSpacing: 3 }}>
-                {tail.reveal.code}
-              </Text>
-            </View>
-          )}
-
-          {/* Stats row */}
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <View style={[styles.statChip, { backgroundColor: `${cfg.color}15`, borderColor: `${cfg.color}30` }]}>
-              <Text style={{ color: cfg.color, fontSize: 11, fontWeight: "900" }}>
-                🎯 {tail.catchCount || 0} caught
-              </Text>
-            </View>
-            {tail.catchLimit != null && (
-              <View style={[styles.statChip, { backgroundColor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.2)" }]}>
-                <Text style={{ color: "#EF4444", fontSize: 11, fontWeight: "900" }}>
-                  {Math.max(0, tail.catchLimit - (tail.catchCount || 0))} left
-                </Text>
-              </View>
-            )}
-            {tail.monetization?.hasMonetizedUrl && (
-              <View style={[styles.statChip, { backgroundColor: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.2)" }]}>
-                <Text style={{ color: "#22C55E", fontSize: 11, fontWeight: "900" }}>💰 Earns</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Reactions */}
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {["🔥", "💯", "👀", "🎯"].map((emoji) => (
-              <TouchableOpacity
-                key={emoji}
-                onPress={() => onReact?.(tail.id, emoji)}
-                style={[styles.statChip, { backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)" }]}
-              >
-                <Text style={{ fontSize: 14 }}>{emoji}</Text>
-                {tail.reactions?.[emoji] > 0 && (
-                  <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>
-                    {tail.reactions[emoji]}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Actions */}
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
-            {tail.url && (
-              <TouchableOpacity
-                onPress={() => onOpenLink?.(tail.monetization?.monetizedUrl || tail.url)}
+          {/* ── Full media (65% screen height) ── */}
+          {hasMedia ? (
+            <View style={{ width: "100%", height: SH * 0.52, position: "relative" }}>
+              <Image
+                source={{ uri: tail.mediaUrl || tail.meta?.image }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
+              {/* Dark gradient over bottom of image */}
+              <View style={{
+                position: "absolute", bottom: 0, left: 0, right: 0, height: "50%",
+                backgroundColor: "rgba(0,0,0,0.55)",
+              }} />
+              {/* Close button top right */}
+              <TouchableOpacity onPress={close} hitSlop={16}
                 style={{
-                  flex: 1, paddingVertical: 13, borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: tail.monetization?.hasMonetizedUrl ? "#22C55E" : "rgba(255,255,255,0.15)",
-                  backgroundColor: tail.monetization?.hasMonetizedUrl ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.05)",
+                  position: "absolute", top: 16, right: 16,
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: "rgba(0,0,0,0.55)",
+                  alignItems: "center", justifyContent: "center",
+                }}>
+                <Text style={{ color: "#fff", fontWeight: "900", fontSize: 14 }}>✕</Text>
+              </TouchableOpacity>
+              {/* Floating pill over bottom of image */}
+              <View style={{
+                position: "absolute", bottom: 14, left: 14, right: 14,
+                flexDirection: "row", alignItems: "center",
+                backgroundColor: "rgba(0,0,0,0.65)",
+                backdropFilter: "blur(12px)",
+                borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
+                borderWidth: 1, borderColor: `${cfg.color}30`,
+                gap: 8,
+              }}>
+                <Text style={{ fontSize: 14 }}>{cfg.icon}</Text>
+                <Text style={{ color: "#fff", fontWeight: "900", fontSize: 12 }}>@{tail.from}</Text>
+                <View style={{ flex: 1 }} />
+                {tlText && (
+                  <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "800" }}>⏱ {tlText}</Text>
+                )}
+                {spotsLeft !== null && (
+                  <View style={{ backgroundColor: "rgba(239,68,68,0.85)",
+                    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "900" }}>{spotsLeft} left</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : (
+            /* No media — compact header */
+            <View style={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: 8 }}>
+              <View style={{ alignItems: "center", marginBottom: 8 }}>
+                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: `${cfg.color}40` }} />
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={{ fontSize: 22 }}>{cfg.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: "#fff", fontWeight: "900", fontSize: 15 }}>@{tail.from}</Text>
+                  {tlText && <Text style={{ color: cfg.color, fontSize: 11 }}>⏱ {tlText}</Text>}
+                </View>
+                <TouchableOpacity onPress={close} hitSlop={12}>
+                  <Text style={{ color: "#475569", fontSize: 18, fontWeight: "900" }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Drag handle */}
+          {hasMedia && (
+            <View style={{ alignItems: "center", paddingTop: 10 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: "#1E293B" }} />
+            </View>
+          )}
+
+          {/* ── Content area ── */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, gap: 16 }}>
+
+            {/* Hook message */}
+            {!!tail.message && (
+              <Text style={{ color: "#E2E8F0", fontSize: 17, lineHeight: 26, fontWeight: "500" }}>
+                {tail.message}
+              </Text>
+            )}
+
+            {/* ── BIG reveal box ── */}
+            {tail?.reveal && (
+              <View style={{
+                borderRadius: 20, borderWidth: 1.5,
+                borderColor: `${cfg.color}50`,
+                backgroundColor: `${cfg.color}0D`,
+                overflow: "hidden",
+              }}>
+                {/* Reveal kind label */}
+                <View style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10,
+                  borderBottomWidth: 1, borderBottomColor: `${cfg.color}20`,
+                }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: cfg.color }} />
+                  <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "900",
+                    textTransform: "uppercase", letterSpacing: 1.5 }}>
+                    {tail.reveal.kind === "coupon" ? "Coupon Code"
+                      : tail.reveal.kind === "message" ? "Message"
+                      : tail.reveal.kind === "emoji" ? "Reaction"
+                      : tail.reveal.kind === "gift" ? "Gift"
+                      : tail.reveal.kind === "voice" ? "Voice Note"
+                      : tail.reveal.kind === "url" ? "Link"
+                      : "Reveal"}
+                  </Text>
+                </View>
+
+                {/* Reveal content — BIG */}
+                <View style={{ padding: 20, alignItems: "center", gap: 12 }}>
+
+                  {tail.reveal.kind === "message" && (
+                    <Text style={{ color: "#F1F5F9", fontSize: 18, lineHeight: 28,
+                      textAlign: "center", fontWeight: "500" }}>
+                      {tail.reveal.text}
+                    </Text>
+                  )}
+
+                  {tail.reveal.kind === "coupon" && (
+                    <View style={{ alignItems: "center", gap: 8, width: "100%" }}>
+                      <View style={{
+                        borderWidth: 2, borderColor: cfg.color, borderStyle: "dashed",
+                        borderRadius: 14, paddingVertical: 16, paddingHorizontal: 24,
+                        width: "100%", alignItems: "center",
+                        backgroundColor: `${cfg.color}08`,
+                      }}>
+                        <Text style={{ color: "#64748B", fontSize: 11, fontWeight: "800",
+                          letterSpacing: 2, marginBottom: 6 }}>TAP TO COPY</Text>
+                        <Text style={{ color: cfg.color, fontSize: 28, fontWeight: "900",
+                          letterSpacing: 4 }}>{tail.reveal.code}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {tail.reveal.kind === "emoji" && (
+                    <>
+                      <Text style={{ fontSize: 80 }}>{tail.reveal.emoji}</Text>
+                      <Text style={{ color: "#64748B", fontSize: 13 }}>@{tail.from} sent you this</Text>
+                    </>
+                  )}
+
+                  {tail.reveal.kind === "gift" && (
+                    <>
+                      <Text style={{ fontSize: 48 }}>💰</Text>
+                      <Text style={{ color: "#F43F8E", fontSize: 42, fontWeight: "900",
+                        letterSpacing: -1 }}>${tail.reveal.amount}</Text>
+                      {tail.reveal.message && (
+                        <Text style={{ color: "#94A3B8", fontSize: 14, textAlign: "center",
+                          lineHeight: 22 }}>{tail.reveal.message}</Text>
+                      )}
+                      <View style={{ flexDirection: "row", flexWrap: "wrap",
+                        gap: 8, justifyContent: "center", marginTop: 4 }}>
+                        {(tail.reveal.paymentApps || ["cashapp","venmo"]).map(app => (
+                          <TouchableOpacity key={app} style={{
+                            paddingHorizontal: 14, paddingVertical: 10,
+                            borderRadius: 12, backgroundColor: "rgba(244,63,142,0.12)",
+                            borderWidth: 1.5, borderColor: "rgba(244,63,142,0.35)",
+                          }}>
+                            <Text style={{ color: "#F43F8E", fontWeight: "900", fontSize: 13 }}>
+                              {app === "cashapp" ? "💵 Cash App"
+                                : app === "venmo" ? "🔵 Venmo"
+                                : app === "paypal" ? "🅿️ PayPal"
+                                : "🍎 Apple Pay"}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  {tail.reveal.kind === "voice" && (
+                    <>
+                      <View style={{
+                        width: 72, height: 72, borderRadius: 36,
+                        backgroundColor: `${cfg.color}20`,
+                        borderWidth: 2, borderColor: `${cfg.color}50`,
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Text style={{ fontSize: 32 }}>🎙</Text>
+                      </View>
+                      <Text style={{ color: "#94A3B8", fontSize: 14 }}>
+                        Voice note from @{tail.from}
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: 3, alignItems: "center" }}>
+                        {[...Array(20)].map((_, i) => (
+                          <View key={i} style={{
+                            width: 3, borderRadius: 2,
+                            height: Math.random() > 0.5 ? 24 : 12,
+                            backgroundColor: `${cfg.color}60`,
+                          }} />
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  {tail.reveal.kind === "url" && (
+                    <>
+                      <Text style={{ fontSize: 36 }}>🔗</Text>
+                      <Text style={{ color: cfg.color, fontSize: 14, fontWeight: "700",
+                        textAlign: "center" }} numberOfLines={2}>
+                        {tail.reveal.url || tail.url}
+                      </Text>
+                    </>
+                  )}
+
+                </View>
+              </View>
+            )}
+
+            {/* Stats row */}
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={[styles.statChip, { backgroundColor: `${cfg.color}15`, borderColor: `${cfg.color}30` }]}>
+                <Text style={{ color: cfg.color, fontSize: 11, fontWeight: "900" }}>
+                  🎯 {tail.catchCount || 0} caught
+                </Text>
+              </View>
+              {spotsLeft !== null && (
+                <View style={[styles.statChip, { backgroundColor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.2)" }]}>
+                  <Text style={{ color: "#EF4444", fontSize: 11, fontWeight: "900" }}>{spotsLeft} left</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Reactions */}
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {["🔥", "💯", "👀", "🎯"].map((emoji) => (
+                <TouchableOpacity key={emoji} onPress={() => onReact?.(tail.id, emoji)}
+                  style={[styles.statChip, { backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)" }]}>
+                  <Text style={{ fontSize: 14 }}>{emoji}</Text>
+                  {tail.reactions?.[emoji] > 0 && (
+                    <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>
+                      {tail.reactions[emoji]}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Action buttons ── */}
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {/* Big catch button */}
+              <TouchableOpacity onPress={handleCatch} disabled={caught}
+                style={{
+                  paddingVertical: 18, borderRadius: 20,
+                  backgroundColor: caught ? "#1E293B" : cfg.color,
                   alignItems: "center",
-                }}
-              >
-                <Text style={{ color: tail.monetization?.hasMonetizedUrl ? "#22C55E" : "#E5E7EB", fontWeight: "900", fontSize: 13 }}>
-                  {tail.monetization?.hasMonetizedUrl ? "💰 Open & Earn" : "🔗 Open Link"}
+                  shadowColor: cfg.color,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: caught ? 0 : 0.45,
+                  shadowRadius: 16,
+                }}>
+                <Text style={{ color: "#fff", fontWeight: "900", fontSize: 17 }}>
+                  {caught ? "✓ Caught" : `🎯 Catch Tail`}
                 </Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={() => onCatch?.(tail)}
-              style={{
-                flex: 1.4, paddingVertical: 13, borderRadius: 16,
-                backgroundColor: cfg.color,
-                alignItems: "center",
-                shadowColor: cfg.color,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 8,
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "900", fontSize: 14 }}>
-                🎯 Catch Tail
-              </Text>
-            </TouchableOpacity>
+
+              {/* Link button below if has URL */}
+              {tail.url && (
+                <TouchableOpacity
+                  onPress={() => onOpenLink?.(tail.monetization?.monetizedUrl || tail.url)}
+                  style={{
+                    paddingVertical: 14, borderRadius: 16,
+                    borderWidth: 1.5,
+                    borderColor: tail.monetization?.hasMonetizedUrl ? "#22C55E" : "#1E293B",
+                    backgroundColor: tail.monetization?.hasMonetizedUrl
+                      ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)",
+                    alignItems: "center",
+                  }}>
+                  <Text style={{
+                    color: tail.monetization?.hasMonetizedUrl ? "#22C55E" : "#64748B",
+                    fontWeight: "900", fontSize: 14,
+                  }}>
+                    {tail.monetization?.hasMonetizedUrl ? "💰 Open & Earn" : "🔗 Open Link"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
           </View>
-        </View>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -661,7 +726,7 @@ export default function TailHome({
       energy: { current: 100 },
       reveal: { kind: "coupon", code: "AIRMAX40" },
       mediaUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3163534/3163534-uhd_2560_1440_30fps.mp4",
+      previewUrl: "https://www.pexels.com/download/video/3163534/",
     },
     {
       id: "demo_2", _type: "tail", tailType: "NOW",
@@ -672,7 +737,7 @@ export default function TailHome({
       energy: { current: 99 },
       reveal: { kind: "message", text: "Ichiran Ramen, 132 W 49th St. Go Tuesday, no wait 🤫" },
       mediaUrl: "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3298529/3298529-uhd_2560_1440_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3163534/3163534-sd_640_360_30fps.mp4",
     },
     {
       id: "demo_3", _type: "tail", tailType: "GIFT",
@@ -684,7 +749,7 @@ export default function TailHome({
       reveal: { kind: "gift", amount: 25, paymentApps: ["cashapp","venmo"],
         message: "get something good, happy birthday!" },
       mediaUrl: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3209828/3209828-uhd_2560_1440_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3209828/3209828-sd_640_360_25fps.mp4",
     },
     {
       id: "demo_4", _type: "tail", tailType: "DROP",
@@ -695,7 +760,7 @@ export default function TailHome({
       energy: { current: 95 },
       reveal: { kind: "url", url: "https://amazon.com" },
       mediaUrl: "https://images.unsplash.com/photo-1588423771073-b8903fead85b?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/4812208/4812208-uhd_2560_1440_30fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/4793504/4793504-sd_640_360_25fps.mp4",
     },
     {
       id: "demo_5", _type: "tail", tailType: "NOW",
@@ -706,7 +771,7 @@ export default function TailHome({
       energy: { current: 100 },
       reveal: { kind: "url", url: "https://zoom.us/j/demo" },
       mediaUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/4793504/4793504-uhd_2560_1440_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3045163/3045163-sd_640_360_25fps.mp4",
     },
     {
       id: "demo_6", _type: "tail", tailType: "LOOK",
@@ -717,7 +782,7 @@ export default function TailHome({
       energy: { current: 55 },
       reveal: { kind: "message", text: "Goodwill on Broadway & 79th. Tuesday afternoons restock 🔑" },
       mediaUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3192220/3192220-uhd_2560_1440_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3571264/3571264-sd_640_360_30fps.mp4",
     },
     {
       id: "demo_7", _type: "tail", tailType: "GEO",
@@ -729,7 +794,7 @@ export default function TailHome({
       geo: { distance: 400, distanceLabel: "0.4km" },
       reveal: { kind: "message", text: "230 Fifth Ave rooftop. Tell them you caught the tail 🦊" },
       mediaUrl: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/2795405/2795405-uhd_2560_1440_30fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/2795405/2795405-sd_640_360_30fps.mp4",
     },
     {
       id: "demo_8", _type: "tail", tailType: "DROP",
@@ -740,7 +805,7 @@ export default function TailHome({
       energy: { current: 100 },
       reveal: { kind: "message", text: "Text 404-xxx-xxxx, say you caught the tail. Pickup only ATL." },
       mediaUrl: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/6774279/6774279-uhd_3840_2160_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3926589/3926589-sd_640_360_30fps.mp4",
     },
     {
       id: "demo_9", _type: "tail", tailType: "CHAIN",
@@ -751,7 +816,7 @@ export default function TailHome({
       energy: { current: 65 },
       reveal: { kind: "emoji", emoji: "🔥" },
       mediaUrl: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/4325579/4325579-sd_640_360_30fps.mp4",
     },
     {
       id: "demo_10", _type: "tail", tailType: "NOW",
@@ -762,7 +827,7 @@ export default function TailHome({
       energy: { current: 98 },
       reveal: { kind: "url", url: "https://soundcloud.com" },
       mediaUrl: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=600",
-      previewUrl: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+      previewUrl: "https://videos.pexels.com/video-files/3298529/3298529-sd_640_360_25fps.mp4",
     },
     {
       id: "demo_11", _type: "tail", tailType: "LOOK",
