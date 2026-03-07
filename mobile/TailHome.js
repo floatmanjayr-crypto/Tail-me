@@ -174,14 +174,9 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
           }} />
         )}
 
-        {/* Top row */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", zIndex: 1 }}>
-          <View style={[styles.typePill, { backgroundColor: `${cfg.color}25` }]}>
-            <Text style={{ fontSize: 8, fontWeight: "900", color: cfg.color, letterSpacing: 0.5 }}>
-              {tail?.tailType || "LOOK"}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, lineHeight: 22 }}>{cfg.icon}</Text>
+        {/* Top row — icon only, no text */}
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "flex-start", zIndex: 1 }}>
+          <Text style={{ fontSize: 16, lineHeight: 20, opacity: 0.85 }}>{cfg.icon}</Text>
         </View>
 
         {/* Middle — context info */}
