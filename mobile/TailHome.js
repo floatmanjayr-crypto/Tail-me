@@ -193,7 +193,6 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
           }} />
         )}
 
-        )}
 
         {/* Top row — emoji only */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "flex-start", zIndex: 1 }}>
