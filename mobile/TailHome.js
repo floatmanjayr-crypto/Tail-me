@@ -971,7 +971,7 @@ export default function TailHome({
     }
     const isHighlighted = highlightedUser === item.from;
     const isDimmed = highlightedUser !== null && !isHighlighted;
-    const isVis = visibleCards ? visibleCards.get(item.id) : true;
+    const isVis = true;
     return (
       <VideoPreviewCard
         tail={item}
