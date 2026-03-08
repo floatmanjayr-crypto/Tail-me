@@ -971,17 +971,16 @@ export default function TailHome({
     }
     const isHighlighted = highlightedUser === item.from;
     const isDimmed = highlightedUser !== null && !isHighlighted;
+    const isVis = visibleCards ? visibleCards.get(item.id) : true;
     return (
-      <View style={{ padding: CARD_GAP / 2 }}>
-        <TailGridCard
-          tail={item}
-          onTap={handleTap}
-          onLongPress={handleLongPress}
-          isHighlighted={isHighlighted}
-          isDimmed={isDimmed}
-          colors={C}
-        />
-      </View>
+      <VideoPreviewCard
+        tail={item}
+        onTap={handleTap}
+        onLongPress={handleLongPress}
+        isHighlighted={isHighlighted}
+        dimmed={isDimmed}
+        isVisible={isVis}
+      />
     );
   }, [highlightedUser, handleTap, handleLongPress, C]);
 
