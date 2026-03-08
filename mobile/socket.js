@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 
 const USE_TUNNEL = true; // 👈 flip this ON/OFF when needed
 
-const NGROK_URL = "https://aacf-51-8-152-68.ngrok-free.app";
+const NGROK_URL = "https://9612-74-249-85-192.ngrok-free.app";
 
 const LOCAL_URL =
   Platform.OS === "android"
@@ -18,7 +18,7 @@ export const SOCKET_URL = __DEV__
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
-  transports: ["polling", "websocket"],
+  transports: ["polling"],
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,

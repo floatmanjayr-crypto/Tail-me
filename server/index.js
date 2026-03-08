@@ -821,6 +821,7 @@ io.on("connection", (socket) => {
       id: tailId, from, recipients, visibility, tailType, catchLimit,
       url:          (data?.url || "").trim().slice(0, 500),
       mediaUrl:     data?.mediaUrl  || null,
+      previewUrl:   data?.previewUrl || null,
       mediaType:    data?.mediaType || null,
       title:        (data?.title || "Tail").slice(0, 100),
       message:      (data?.message || "").slice(0, 500),

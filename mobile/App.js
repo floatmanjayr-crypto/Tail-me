@@ -1128,6 +1128,48 @@ export default function App() {
     }
 
     try {
+      // Upload media first if present
+      let mediaUrl = null;
+      let previewUrl = null;
+      
+      if (payload.videoUri) {
+        console.log("📤 Uploading video:", payload.videoUri);
+        const formData = new FormData();
+        formData.append("media", {
+          uri: payload.videoUri,
+          type: "video/mp4",
+          name: "upload.mp4",
+        });
+        const response = await fetch(`${SOCKET_URL}/upload`, {
+          method: "POST",
+          body: formData,
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const data = await response.json();
+        if (data?.ok) {
+          previewUrl = `${SOCKET_URL}${data.url}`;
+          console.log("✅ Video uploaded:", previewUrl);
+        }
+      } else if (payload.photoUri) {
+        console.log("📤 Uploading photo:", payload.photoUri);
+        const formData = new FormData();
+        formData.append("media", {
+          uri: payload.photoUri,
+          type: "image/jpeg",
+          name: "upload.jpg",
+        });
+        const response = await fetch(`${SOCKET_URL}/upload`, {
+          method: "POST",
+          body: formData,
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const data = await response.json();
+        if (data?.ok) {
+          mediaUrl = `${SOCKET_URL}${data.url}`;
+          console.log("✅ Photo uploaded:", mediaUrl);
+        }
+      }
+
       const tailId = `tail_${Date.now()}_${Math.random().toString(36).slice(2,10)}`;
       const now = Date.now();
       const DURATION = { m: 60000, h: 3600000, d: 86400000 };
@@ -1146,6 +1188,8 @@ export default function App() {
         categories: payload.categories || [],
         reveal: payload.reveal || null,
         monetization: payload.monetization || null,
+        mediaUrl: mediaUrl,
+        previewUrl: previewUrl,
         expiryAmount: parseInt(payload.expiryAmount) || 24,
         expiryUnit: payload.expiryUnit || "h",
         timestamp: now,
@@ -1184,6 +1228,7 @@ export default function App() {
       reset();
     }
   }, [isSending, me, socket]);
+
 
   const sendChainTail = useCallback(
     ({ layers }) => {
