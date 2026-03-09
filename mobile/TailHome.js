@@ -1014,7 +1014,7 @@ export default function TailHome({
       )}
 
       {/* ── Grid (hidden when feed active) ── */}
-      <View style={{ flex: 1, display: activeTab === "grid" ? "flex" : "none" }}>
+      {activeTab === "grid" && <View style={{ flex: 1 }}>
       {/* ── Header: 🦊 Tail Me left | badges + avatar right ── */}
       <View style={{
         paddingHorizontal: 16, paddingVertical: 10,
@@ -1188,7 +1188,7 @@ export default function TailHome({
         />
       )}
     </View>
-      </View>
+      }</View>}
   );
 }
 

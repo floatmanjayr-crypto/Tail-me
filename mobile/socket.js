@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 
 const USE_TUNNEL = true; // 👈 flip this ON/OFF when needed
 
-const NGROK_URL = "https://f25c-74-249-85-192.ngrok-free.app";
+const NGROK_URL = "https://686a-135-237-130-229.ngrok-free.app";
 
 const LOCAL_URL =
   Platform.OS === "android"
