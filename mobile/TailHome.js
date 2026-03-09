@@ -27,6 +27,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Video, ResizeMode } from "expo-av";
 import VideoPreviewCard from "./VideoPreviewCard";
+import SplitFeedScreen from "./SplitFeedScreen";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const CARD_GAP = 6;
@@ -670,6 +671,7 @@ export default function TailHome({
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
   const [highlightedUser, setHighlightedUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("grid");
   const flatListRef = useRef(null);
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     const visible = {};
@@ -986,6 +988,33 @@ export default function TailHome({
 
   return (
     <View style={{ flex: 1 }}>
+      {/* ── Tab switcher ── */}
+      <View style={{ flexDirection: "row", backgroundColor: "#000", borderBottomWidth: 1, borderBottomColor: "#111" }}>
+        <TouchableOpacity
+          onPress={() => setActiveTab("grid")}
+          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: activeTab === "grid" ? "#7C3AED" : "transparent" }}
+        >
+          <Text style={{ color: activeTab === "grid" ? "#7C3AED" : "#444", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>⬡ GRID</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab("feed")}
+          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: activeTab === "feed" ? "#F59E0B" : "transparent" }}
+        >
+          <Text style={{ color: activeTab === "feed" ? "#F59E0B" : "#444", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>▣ FEED</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Split Feed ── */}
+      {activeTab === "feed" && (
+        <SplitFeedScreen
+          tails={allTails}
+          onCatch={handleTap}
+          colors={C}
+        />
+      )}
+
+      {/* ── Grid (hidden when feed active) ── */}
+      <View style={{ flex: 1, display: activeTab === "grid" ? "flex" : "none" }}>
       {/* ── Header: 🦊 Tail Me left | badges + avatar right ── */}
       <View style={{
         paddingHorizontal: 16, paddingVertical: 10,
@@ -1159,6 +1188,7 @@ export default function TailHome({
         />
       )}
     </View>
+      </View>
   );
 }
 

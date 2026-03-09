@@ -377,6 +377,7 @@ function publicView(tail, userLat, userLng) {
     isFull:       tail.catchLimit != null && tail.catchCount >= tail.catchLimit,
     url:          tail.url,
     mediaUrl:     tail.mediaUrl,
+    previewUrl:   tail.previewUrl || null,
     mediaType:    tail.mediaType,
     title:        tail.title,
     message:      tail.message,
