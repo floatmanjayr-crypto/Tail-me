@@ -648,10 +648,7 @@ export default function TailHome({
   colors: C,
   onReact,
   streak = 0,
-  earnings = 0,
-  isPro,
-  onOpenEarnings,
-  onOpenPro,
+
   onRefresh,
   categoryFilterOptions = [],
   selectedCategory = "foryou",
