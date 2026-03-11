@@ -103,18 +103,7 @@ export default function VideoPreviewCard({
         </View>
       )}
 
-      {/* ── Gradient bottom overlay ── */}
-      <View style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: CARD_SIZE * 0.5,
-        background: "transparent",
-        // Simulated gradient via nested views
-      }}>
-        <View style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: "100%",
-          backgroundColor: "rgba(0,0,0,0.45)",
-          opacity: 0.8,
-        }} />
-      </View>
+
 
       {/* ── Username bottom left ── */}
       <View style={{

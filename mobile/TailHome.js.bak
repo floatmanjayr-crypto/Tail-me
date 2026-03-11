@@ -1,7 +1,7 @@
 // ============================================
-// TailHome.js — Grid Redesign v8
+// TailHome.js — Grid Redesign v7
 // ✅ 3-column tap grid
-// ✅ SplitFrameCard reveal modal
+// ✅ Card expands in-place to reveal
 // ✅ Swipe down to dismiss back to grid
 // ✅ Long press = creator highlight + spotlight
 // ✅ Shimmer placeholders
@@ -28,10 +28,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Video, ResizeMode } from "expo-av";
 import VideoPreviewCard from "./VideoPreviewCard";
 import SplitFeedScreen from "./SplitFeedScreen";
-import SplitFrameCard from "./SplitFrameCard";
 
 const { width: SW, height: SH } = Dimensions.get("window");
-const CARD_GAP = 3;
+const CARD_GAP = 6;
 const COLS = 3;
 const CARD_SIZE = (SW - 16 - CARD_GAP * (COLS + 1)) / COLS;
 
@@ -165,6 +164,10 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
               isLooping
               isMuted
             />
+            <View style={{
+              position: "absolute", inset: 0, borderRadius: 12,
+              backgroundColor: "rgba(0,0,0,0.25)",
+            }} />
           </>
         ) : tail?.mediaUrl ? (
           <>
@@ -173,6 +176,10 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: 12 }}
               resizeMode="cover"
             />
+            <View style={{
+              position: "absolute", inset: 0, borderRadius: 12,
+              backgroundColor: "rgba(0,0,0,0.45)",
+            }} />
           </>
         ) : tail?.tailType === "VOICE" ? (
           <View style={{ position: "absolute", inset: 0, justifyContent: "center", alignItems: "center", backgroundColor: cfg.glow }}>
@@ -186,6 +193,7 @@ const TailGridCard = ({ tail, onTap, onLongPress, isHighlighted, isDimmed, color
             backgroundColor: cfg.glow,
           }} />
         )}
+
 
         {/* Top row — emoji only */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "flex-start", zIndex: 1 }}>
@@ -550,7 +558,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
                   shadowRadius: 16,
                 }}>
                 <Text style={{ color: "#fff", fontWeight: "900", fontSize: 17 }}>
-                  {caught ? "✓ Caught" : "🎯 Catch Tail"}
+                  {caught ? "✓ Caught" : `🎯 Catch Tail`}
                 </Text>
               </TouchableOpacity>
 
@@ -584,7 +592,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
 };
 
 // ── Spotlight Bar ────────────────────────────────────────
-const SpotlightBar = ({ username, tailCount, onClose, following = [], onFollowUser, colors: C }) => {
+const SpotlightBar = ({ username, tailCount, onClose, colors: C }) => {
   const slideAnim = useRef(new Animated.Value(80)).current;
 
   useEffect(() => {
@@ -659,14 +667,22 @@ export default function TailHome({
   following = [],
   followingFeed = [],
   onFollowUser,
-  onUnfollowUser,
-  isFollowing: isFollowingFn,
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
   const [highlightedUser, setHighlightedUser] = useState(null);
   const [activeTab, setActiveTab] = useState("grid");
   const flatListRef = useRef(null);
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    const visible = {};
+    viewableItems.forEach(({ item }) => {
+      if (item?._type === "tail") visible[item.id] = true;
+    });
+    setVisibleCards(visible);
+  }).current;
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 30,
+  }).current;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -707,8 +723,6 @@ export default function TailHome({
     {
       id: "demo_1", _type: "tail", tailType: "DROP",
       from: "jordan.archivo",
-      frameLayout: "A",
-      boxes: [{ type: "video", uri: "https://videos.pexels.com/video-files/3163534/3163534-sd_640_360_30fps.mp4" }, { type: "reveal", uri: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600" }, { type: "logo", text: "ARCHIVE" }],
       message: "caught these for $40 reselling for 3x 👟 only 4 left",
       catchLimit: 4, catchCount: 0,
       expiresAt: Date.now() + 3600000 * 2,
@@ -720,8 +734,6 @@ export default function TailHome({
     {
       id: "demo_2", _type: "tail", tailType: "NOW",
       from: "maya.eats.nyc",
-      frameLayout: "B",
-      boxes: [{ type: "video", uri: "https://videos.pexels.com/video-files/3163534/3163534-sd_640_360_30fps.mp4" }, { type: "reveal" }],
       message: "this ramen is actually insane 😭 2hr wait but worth it",
       catchLimit: null, catchCount: 31,
       expiresAt: Date.now() + 1800000,
@@ -733,8 +745,6 @@ export default function TailHome({
     {
       id: "demo_3", _type: "tail", tailType: "GIFT",
       from: "dre.williams",
-      frameLayout: "E",
-      boxes: [{ type: "video", uri: "https://videos.pexels.com/video-files/3209828/3209828-sd_640_360_25fps.mp4" }, { type: "voice" }, { type: "reveal" }],
       message: "happy bday bro lunch on me 🎂",
       catchLimit: 1, catchCount: 0,
       expiresAt: Date.now() + 3600000 * 24,
@@ -747,8 +757,6 @@ export default function TailHome({
     {
       id: "demo_4", _type: "tail", tailType: "DROP",
       from: "techdrops_",
-      frameLayout: "D",
-      boxes: [{ type: "video", uri: "https://videos.pexels.com/video-files/4793504/4793504-sd_640_360_25fps.mp4" }, { type: "text", text: "LOWEST PRICE EVER" }, { type: "reveal" }],
       message: "airpods pro $189 — lowest ever. 8 left before price goes back up",
       catchLimit: 8, catchCount: 6,
       expiresAt: Date.now() + 3600000,
@@ -760,8 +768,6 @@ export default function TailHome({
     {
       id: "demo_5", _type: "tail", tailType: "NOW",
       from: "coach.rina.fit",
-      frameLayout: "C",
-      boxes: [{ type: "reveal", uri: "https://videos.pexels.com/video-files/3045163/3045163-sd_640_360_25fps.mp4" }],
       message: "going live in 10mins — free HIIT 🔥 catch for zoom link",
       catchLimit: 30, catchCount: 18,
       expiresAt: Date.now() + 600000,
@@ -967,6 +973,7 @@ export default function TailHome({
     }
     const isHighlighted = highlightedUser === item.from;
     const isDimmed = highlightedUser !== null && !isHighlighted;
+    const isVis = true;
     return (
       <VideoPreviewCard
         tail={item}
@@ -974,7 +981,7 @@ export default function TailHome({
         onLongPress={handleLongPress}
         isHighlighted={isHighlighted}
         dimmed={isDimmed}
-        isVisible={true}
+        isVisible={isVis}
       />
     );
   }, [highlightedUser, handleTap, handleLongPress, C]);
@@ -1008,187 +1015,181 @@ export default function TailHome({
 
       {/* ── Grid (hidden when feed active) ── */}
       {activeTab === "grid" && (
-        <View style={{ flex: 1 }}>
-          {/* ── Header: 🦊 Tail Me left | badges + avatar right ── */}
-          <View style={{
-            paddingHorizontal: 16, paddingVertical: 10,
-            flexDirection: "row", alignItems: "center",
-            justifyContent: "space-between",
-            borderBottomWidth: 1, borderBottomColor: C.border,
-          }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ fontSize: 24 }}>🦊</Text>
-              <Text style={{ color: C.text, fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
-
-            </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {streak > 0 && (
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 4,
-                    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
-                    backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.3)" }}>
-                  <Text style={{ fontSize: 11 }}>🔥</Text>
-                  <Text style={{ color: "#F59E0B", fontWeight: "900", fontSize: 12 }}>{streak}</Text>
-                </View>
-              )}
-
-              <TouchableOpacity onPress={onOpenPrivate}
-                style={{ width: 36, height: 36, borderRadius: 11,
-                  backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C.panel,
-                  borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
-                  alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
-                {inboxCount > 0 && (
-                  <View style={{ position: "absolute", top: -4, right: -4,
-                    width: 15, height: 15, borderRadius: 8, backgroundColor: "#7C3AED",
-                    alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>
-                      {inboxCount > 9 ? "9+" : inboxCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* ── Category emoji chips ── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 46 }}
-            contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}
-          >
-            {categoryFilterOptions.map((opt) => {
-              const isSelected = selectedCategory === opt.id;
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  onPress={() => onCategoryChange?.(opt.id)}
-                  style={{
-                    minWidth: 32, height: 32,
-                    paddingHorizontal: opt.labelFull ? 10 : 0,
-                    borderRadius: 16, borderWidth: 1,
-                    borderColor: isSelected ? C.brand : C.border,
-                    backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C.panel,
-                    alignItems: "center", justifyContent: "center",
-                    flexDirection: "row", gap: 3,
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
-                  {opt.labelFull && (
-                    <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 11 }}>
-                      {opt.labelFull}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Grid */}
-          <FlatList
-            ref={flatListRef}
-            data={gridData}
-            keyExtractor={(item) => item.id || item._id || String(Math.random())}
-            numColumns={3}
-            renderItem={renderItem}
-            contentContainerStyle={{ padding: CARD_GAP / 2, paddingBottom: 120 }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={C.brand}
-                colors={[C.brand]}
-              />
-            }
-            ListEmptyComponent={
-              selectedCategory === "following" ? (
-                <View style={{ padding: 24, gap: 16 }}>
-                  <Text style={{ color: C.text, fontWeight: "900", fontSize: 18, textAlign: "center" }}>
-                    Follow creators 👥
-                  </Text>
-                  <Text style={{ color: C.muted, fontSize: 14, textAlign: "center", marginBottom: 8 }}>
-                    Long press any tail in the grid to follow its creator
-                  </Text>
-                  {["tailme_drops","techdrops_","fooddeals_","fashiondrops_","fitdrops_"].map(u => (
-                    <View key={u} style={{
-                      flexDirection: "row", alignItems: "center", gap: 12,
-                      padding: 14, borderRadius: 16,
-                      backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
-                    }}>
-                      <View style={{ width: 40, height: 40, borderRadius: 12,
-                        backgroundColor: "rgba(124,58,237,0.2)", alignItems: "center", justifyContent: "center" }}>
-                        <Text style={{ fontSize: 18 }}>🦊</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.text, fontWeight: "900", fontSize: 14 }}>@{u}</Text>
-                        <Text style={{ color: C.muted, fontSize: 11 }}>Curated drops daily</Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => onFollowUser?.(u)}
-                        style={{
-                          paddingHorizontal: 14, paddingVertical: 7,
-                          borderRadius: 10,
-                          backgroundColor: following.includes(u) ? "rgba(124,58,237,0.2)" : "#7C3AED",
-                          borderWidth: 1, borderColor: "#7C3AED",
-                        }}>
-                        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 12 }}>
-                          {following.includes(u) ? "✓ Following" : "Follow"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={{ alignItems: "center", paddingTop: 60, gap: 8 }}>
-                  <Text style={{ fontSize: 40 }}>🦊</Text>
-                  <Text style={{ color: C.muted, fontWeight: "900", fontSize: 16 }}>No tails yet</Text>
-                  <Text style={{ color: C.dim, fontSize: 13 }}>Be the first to send one</Text>
-                </View>
-              )
-            }
-          />
-
-          {/* Spotlight bar */}
-          {highlightedUser && (
-            <SpotlightBar
-              username={highlightedUser}
-              tailCount={highlightedCount}
-              onClose={() => setHighlightedUser(null)}
-              following={following}
-              onFollowUser={onFollowUser}
-              colors={C}
-            />
-          )}
-
-          {/* Expanded reveal - SplitFrame Modal */}
-          {expandedTail && (
-            <View style={{
-              position: "absolute",
-              top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.9)",
-              justifyContent: "center",
-              zIndex: 100,
-            }}>
-              <TouchableOpacity
-                style={{
-                  position: "absolute", top: 50, right: 20, zIndex: 110,
-                  width: 40, height: 40, borderRadius: 20,
-                  backgroundColor: "rgba(255,255,255,0.15)",
-                  alignItems: "center", justifyContent: "center",
-                }}
-                onPress={handleCloseReveal}>
-                <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}>✕</Text>
-              </TouchableOpacity>
-              <SplitFrameCard
-                tail={expandedTail}
-                onClose={handleCloseReveal}
-                onCatch={handleCatch}
-              />
+      <View style={{ flex: 1 }}>
+      {/* ── Header: 🦊 Tail Me left | badges + avatar right ── */}
+      <View style={{
+        paddingHorizontal: 16, paddingVertical: 10,
+        flexDirection: "row", alignItems: "center",
+        justifyContent: "space-between",
+        borderBottomWidth: 1, borderBottomColor: C.border,
+      }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 24 }}>🦊</Text>
+          <Text style={{ color: C.text, fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
+          {isPro && (
+            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text>
             </View>
           )}
         </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {streak > 0 && (
+            <TouchableOpacity onPress={onOpenEarnings}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4,
+                paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
+                backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.3)" }}>
+              <Text style={{ fontSize: 11 }}>🔥</Text>
+              <Text style={{ color: "#F59E0B", fontWeight: "900", fontSize: 12 }}>{streak}</Text>
+            </TouchableOpacity>
+          )}
+          {earnings > 0 && (
+            <TouchableOpacity onPress={onOpenEarnings}
+              style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
+                backgroundColor: "rgba(34,197,94,0.1)", borderWidth: 1, borderColor: "rgba(34,197,94,0.25)" }}>
+              <Text style={{ color: "#22C55E", fontWeight: "900", fontSize: 12 }}>${earnings.toFixed(2)}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={onOpenPrivate}
+            style={{ width: 36, height: 36, borderRadius: 11,
+              backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C.panel,
+              borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
+              alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
+            {inboxCount > 0 && (
+              <View style={{ position: "absolute", top: -4, right: -4,
+                width: 15, height: 15, borderRadius: 8, backgroundColor: "#7C3AED",
+                alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "#fff", fontSize: 8, fontWeight: "900" }}>
+                  {inboxCount > 9 ? "9+" : inboxCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── Category emoji chips ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 46 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}
+      >
+        {categoryFilterOptions.map((opt) => {
+          const isSelected = selectedCategory === opt.id;
+          return (
+            <TouchableOpacity
+              key={opt.id}
+              onPress={() => onCategoryChange?.(opt.id)}
+              style={{
+                minWidth: 32, height: 32,
+                paddingHorizontal: opt.labelFull ? 10 : 0,
+                borderRadius: 16, borderWidth: 1,
+                borderColor: isSelected ? C.brand : C.border,
+                backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C.panel,
+                alignItems: "center", justifyContent: "center",
+                flexDirection: "row", gap: 3,
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
+              {opt.labelFull && (
+                <Text style={{ color: isSelected ? C.text : C.muted, fontWeight: "800", fontSize: 11 }}>
+                  {opt.labelFull}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Grid */}
+      <FlatList
+        ref={flatListRef}
+        data={gridData}
+        keyExtractor={(item) => item.id || item._id || String(Math.random())}
+        numColumns={3}
+        renderItem={renderItem}
+        contentContainerStyle={{ padding: CARD_GAP / 2, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={C.brand}
+            colors={[C.brand]}
+          />
+        }
+        ListEmptyComponent={
+          selectedCategory === "following" ? (
+            <View style={{ padding: 24, gap: 16 }}>
+              <Text style={{ color: C.text, fontWeight: "900", fontSize: 18, textAlign: "center" }}>
+                Follow creators 👥
+              </Text>
+              <Text style={{ color: C.muted, fontSize: 14, textAlign: "center", marginBottom: 8 }}>
+                Long press any tail in the grid to follow its creator
+              </Text>
+              {["tailme_drops","techdrops_","fooddeals_","fashiondrops_","fitdrops_"].map(u => (
+                <View key={u} style={{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  padding: 14, borderRadius: 16,
+                  backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
+                }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12,
+                    backgroundColor: "rgba(124,58,237,0.2)", alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ fontSize: 18 }}>🦊</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontWeight: "900", fontSize: 14 }}>@{u}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11 }}>Curated drops daily</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => onFollowUser?.(u)}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 7,
+                      borderRadius: 10,
+                      backgroundColor: following.includes(u) ? "rgba(124,58,237,0.2)" : "#7C3AED",
+                      borderWidth: 1, borderColor: "#7C3AED",
+                    }}>
+                    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 12 }}>
+                      {following.includes(u) ? "✓ Following" : "Follow"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ alignItems: "center", paddingTop: 60, gap: 8 }}>
+              <Text style={{ fontSize: 40 }}>🦊</Text>
+              <Text style={{ color: C.muted, fontWeight: "900", fontSize: 16 }}>No tails yet</Text>
+              <Text style={{ color: C.dim, fontSize: 13 }}>Be the first to send one</Text>
+            </View>
+          )
+        }
+      />
+
+      {/* Spotlight bar */}
+      {highlightedUser && (
+        <SpotlightBar
+          username={highlightedUser}
+          tailCount={highlightedCount}
+          onClose={() => setHighlightedUser(null)}
+          colors={C}
+        />
+      )}
+
+      {/* Expanded reveal */}
+      {expandedTail && (
+        <ExpandedReveal
+          tail={expandedTail}
+          onClose={handleCloseReveal}
+          onCatch={handleCatch}
+          onOpenLink={handleOpenLink}
+          onReact={onReact}
+          colors={C}
+        />
+      )}
+    </View>
+      </View>
       )}
     </View>
   );

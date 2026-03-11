@@ -1,10 +1,9 @@
 // ============================================
-// TailCard.js — Slim List Card v7
-// Used in public/inbox list screens only
-// Grid feed uses TailGridCard inside TailHome
+// TailCard.js — Slim List Card v8 (with Follow)
 // ============================================
 import React, { useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
+import FollowButton from "./FollowButton";
 
 const TYPE_CONFIG = {
   NOW:   { icon: "⚡", color: "#F59E0B" },
@@ -44,7 +43,18 @@ function PulseDot({ color }) {
   );
 }
 
-export default function TailCard({ tail, onPressTail, colors: C, onReact }) {
+export default function TailCard({
+  tail,
+  onPressTail,
+  colors: C,
+  onReact,
+  // Follow props (optional)
+  currentUsername,
+  isFollowing,
+  onFollow,
+  onUnfollow,
+  showFollowButton = false,
+}) {
   const t = tail || {};
   const tailType = (t.tailType || "LOOK").toUpperCase();
   const cfg = getType(tailType);
@@ -53,6 +63,8 @@ export default function TailCard({ tail, onPressTail, colors: C, onReact }) {
   const spotsLeft = t.catchLimit != null ? Math.max(0, t.catchLimit - (t.catchCount || 0)) : null;
   const timer = timeLeft(t.expiresAt);
   const energy = t.energy?.current ?? 100;
+
+  const canShowFollow = showFollowButton && isFollowing && onFollow && onUnfollow && t.from;
 
   return (
     <TouchableOpacity
@@ -66,78 +78,94 @@ export default function TailCard({ tail, onPressTail, colors: C, onReact }) {
         borderColor: expired || isFull ? C.border : `${cfg.color}50`,
         backgroundColor: C.panel,
         padding: 12,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
         opacity: expired || isFull ? 0.5 : 1,
       }}
     >
-      {/* Icon */}
-      <View style={{
-        width: 44, height: 44, borderRadius: 12,
-        backgroundColor: `${cfg.color}15`,
-        alignItems: "center", justifyContent: "center",
-        borderWidth: 1, borderColor: `${cfg.color}30`,
-      }}>
-        <Text style={{ fontSize: 20 }}>{cfg.icon}</Text>
-      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        {/* Icon */}
+        <View style={{
+          width: 44, height: 44, borderRadius: 12,
+          backgroundColor: `${cfg.color}15`,
+          alignItems: "center", justifyContent: "center",
+          borderWidth: 1, borderColor: `${cfg.color}30`,
+        }}>
+          <Text style={{ fontSize: 20 }}>{cfg.icon}</Text>
+        </View>
 
-      {/* Content */}
-      <View style={{ flex: 1, gap: 4 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{
-            paddingHorizontal: 6, paddingVertical: 2,
-            borderRadius: 5, backgroundColor: `${cfg.color}20`,
-          }}>
-            <Text style={{ color: cfg.color, fontSize: 9, fontWeight: "900" }}>
-              {tailType}
+        {/* Content */}
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{
+              paddingHorizontal: 6, paddingVertical: 2,
+              borderRadius: 5, backgroundColor: `${cfg.color}20`,
+            }}>
+              <Text style={{ color: cfg.color, fontSize: 9, fontWeight: "900" }}>
+                {tailType}
+              </Text>
+            </View>
+            {tailType === "NOW" && <PulseDot color={cfg.color} />}
+            {t.isAd && (
+              <View style={{
+                paddingHorizontal: 5, paddingVertical: 2,
+                borderRadius: 4, backgroundColor: "rgba(245,158,11,0.15)",
+              }}>
+                <Text style={{ color: "#F59E0B", fontSize: 9, fontWeight: "900" }}>AD</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={{ color: C.text, fontWeight: "800", fontSize: 13 }} numberOfLines={1}>
+            {t.meta?.title || t.message || t.title || "Tail"}
+          </Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={{ color: C.dim, fontSize: 11, fontWeight: "700" }}>
+              @{t.from || "user"}
+            </Text>
+            {timer && (
+              <Text style={{ color: C.dim, fontSize: 10 }}>· {timer}</Text>
+            )}
+            {spotsLeft !== null && (
+              <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "900" }}>
+                · {spotsLeft} left
+              </Text>
+            )}
+          </View>
+
+          {/* Energy bar */}
+          <View style={{ height: 2, backgroundColor: C.border, borderRadius: 1, marginTop: 2 }}>
+            <View style={{
+              height: 2, width: `${Math.max(2, energy)}%`,
+              backgroundColor: cfg.color, borderRadius: 1, opacity: 0.7,
+            }} />
+          </View>
+        </View>
+
+        {/* Right side: catch count + optional follow */}
+        <View style={{ alignItems: "center", gap: 6 }}>
+          <View style={{ alignItems: "center", gap: 2 }}>
+            <Text style={{ color: C.muted, fontSize: 16 }}>🎯</Text>
+            <Text style={{ color: C.dim, fontSize: 10, fontWeight: "800" }}>
+              {t.catchCount || 0}
             </Text>
           </View>
-          {tailType === "NOW" && <PulseDot color={cfg.color} />}
-          {t.isAd && (
-            <View style={{
-              paddingHorizontal: 5, paddingVertical: 2,
-              borderRadius: 4, backgroundColor: "rgba(245,158,11,0.15)",
-            }}>
-              <Text style={{ color: "#F59E0B", fontSize: 9, fontWeight: "900" }}>AD</Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={{ color: C.text, fontWeight: "800", fontSize: 13 }} numberOfLines={1}>
-          {t.meta?.title || t.message || t.title || "Tail"}
-        </Text>
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ color: C.dim, fontSize: 11, fontWeight: "700" }}>
-            @{t.from || "user"}
-          </Text>
-          {timer && (
-            <Text style={{ color: C.dim, fontSize: 10 }}>· {timer}</Text>
-          )}
-          {spotsLeft !== null && (
-            <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "900" }}>
-              · {spotsLeft} left
-            </Text>
-          )}
-        </View>
-
-        {/* Energy bar */}
-        <View style={{ height: 2, backgroundColor: C.border, borderRadius: 1, marginTop: 2 }}>
-          <View style={{
-            height: 2, width: `${Math.max(2, energy)}%`,
-            backgroundColor: cfg.color, borderRadius: 1, opacity: 0.7,
-          }} />
         </View>
       </View>
 
-      {/* Catch count */}
-      <View style={{ alignItems: "center", gap: 2 }}>
-        <Text style={{ color: C.muted, fontSize: 16 }}>🎯</Text>
-        <Text style={{ color: C.dim, fontSize: 10, fontWeight: "800" }}>
-          {t.catchCount || 0}
-        </Text>
-      </View>
+      {/* Follow button row (if enabled) */}
+      {canShowFollow && (
+        <View style={{ marginTop: 10, alignItems: "flex-end" }}>
+          <FollowButton
+            targetUsername={t.from}
+            currentUsername={currentUsername}
+            isFollowing={isFollowing}
+            onFollow={onFollow}
+            onUnfollow={onUnfollow}
+            colors={C}
+            size="mini"
+          />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }

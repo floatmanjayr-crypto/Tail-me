@@ -538,17 +538,6 @@ export default function App() {
       showToast("🏁 Chain complete! You got the final reveal!", 3000);
     };
 
-    // Follow system listeners
-    const onFollowUpdated = (data) => {
-      if (Array.isArray(data.following)) setFollowing(data.following);
-    };
-    const onNewFollower = (data) => {
-      if (data?.from) showToast(`👤 @${data.from} started following you!`, 3000);
-    };
-    const onFollowingFeed = (data) => {
-      if (Array.isArray(data)) setFollowingFeed(data);
-    };
-
     socket.on("public-feed", onPublicFeed);
     socket.on("smart-feed", onSmartFeed);
     socket.on("geo-feed", onGeoFeed);
@@ -563,9 +552,6 @@ export default function App() {
     socket.on("passport-data", onPassportData);
     socket.on("chain-layer-unlocked", onChainLayerUnlocked);
     socket.on("chain-complete", onChainComplete);
-    socket.on("follow-updated", onFollowUpdated);
-    socket.on("new-follower", onNewFollower);
-    socket.on("following-feed", onFollowingFeed);
 
     return () => {
       socket.off("public-feed", onPublicFeed);
@@ -582,9 +568,6 @@ export default function App() {
       socket.off("passport-data", onPassportData);
       socket.off("chain-layer-unlocked", onChainLayerUnlocked);
       socket.off("chain-complete", onChainComplete);
-      socket.off("follow-updated", onFollowUpdated);
-      socket.off("new-follower", onNewFollower);
-      socket.off("following-feed", onFollowingFeed);
     };
   }, [showToast]);
 
@@ -797,28 +780,14 @@ export default function App() {
     socket.emit("get-public-feed");
   }, []);
 
-  const followUser = useCallback((target) => {
-    if (!target || target === me?.username) return;
-    socket.emit("follow-user", { target });
-  }, [me?.username]);
-
-  const unfollowUser = useCallback((target) => {
-    if (!target) return;
-    socket.emit("unfollow-user", { target });
-  }, []);
-
-  const isFollowing = useCallback((username) => {
-    return following.includes(username);
-  }, [following]);
-
-  const toggleFollow = useCallback((target) => {
-    if (!target || target === me?.username) return;
-    if (following.includes(target)) {
-      socket.emit("unfollow-user", { target });
+  const followUser = useCallback((username) => {
+    if (!username) return;
+    if (following.includes(username)) {
+      socket.emit("unfollow-user", { target: username });
     } else {
-      socket.emit("follow-user", { target });
+      socket.emit("follow-user", { target: username });
     }
-  }, [following, me?.username]);
+  }, [following]);
 
   const reactToTail = useCallback((tailId, emoji) => {
     console.log("📤 Reacting to tail:", tailId, emoji);
@@ -1653,7 +1622,69 @@ export default function App() {
           />
 
 
-          {/* Monetization — paused (affiliate runs server-side) */}
+          {/* Monetized URL */}
+          <View style={{
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: composeMonetizedUrl.trim() ? C.green : C.border,
+            backgroundColor: composeMonetizedUrl.trim() ? "rgba(34,197,94,0.05)" : "transparent",
+            padding: 12,
+            gap: 8,
+          }}>
+            <Text style={{ color: C.muted, fontWeight: "900", fontSize: 12 }}>
+              💰 Monetized Link (optional)
+            </Text>
+            <Text style={{ color: C.dim, fontSize: 11 }}>
+              Paste your affiliate or earning link. Catchers see your content link — this is what earns.
+            </Text>
+            <TextInput
+              value={composeMonetizedUrl}
+              onChangeText={setComposeMonetizedUrl}
+              placeholder="https://affiliate-link.com/..."
+              placeholderTextColor={C.dim}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                backgroundColor: C.bg,
+                borderWidth: 1,
+                borderColor: composeMonetizedUrl.trim() ? C.green : C.border,
+                color: C.text,
+                padding: 12,
+                borderRadius: 12,
+              }}
+            />
+            {/* Monetization type */}
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {[
+                { key: "direct",    label: "🔗 Direct",    desc: "Your link" },
+                { key: "affiliate", label: "💸 Affiliate", desc: "Commission" },
+                { key: "platform",  label: "⚡ Platform",  desc: "Tail-me deal" },
+              ].map(({ key, label, desc }) => {
+                const active = composeMonetizationType === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => setComposeMonetizationType(key)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: active ? C.green : C.border,
+                      backgroundColor: active ? "rgba(34,197,94,0.1)" : "transparent",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "900", color: active ? C.green : C.muted }}>
+                      {label}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: C.dim }}>{desc}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <TouchableOpacity
             onPress={pickMedia}
             style={{
@@ -3030,6 +3061,10 @@ export default function App() {
             colors={C}
             onReact={reactToTail}
             streak={streak}
+            earnings={earnings}
+            isPro={isPro}
+            onOpenEarnings={() => setScreen("earnings")}
+            onOpenPro={() => setScreen("pro")}
             onRefresh={() => {
               socket.emit("get-public-feed");
               socket.emit("get-smart-feed", { interests: me?.interests || [] });
@@ -3037,9 +3072,7 @@ export default function App() {
             }}
             following={following}
             followingFeed={followingFeed}
-            onFollowUser={toggleFollow}
-            onUnfollowUser={unfollowUser}
-            isFollowing={isFollowing}
+            onFollowUser={followUser}
             selectedCategory={categoryFilter}
             onCategoryChange={setCategoryFilter}
             categoryFilterOptions={[
@@ -3165,7 +3198,20 @@ export default function App() {
       )}
 
       {/* GEO MAP */}
-      {/* GEO — paused */}
+      {screen === "geo" && me && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <GeoScreen
+            tails={
+              geoFeed.length > 0
+                ? geoFeed
+                : publicTails.filter((t) => t.geo)
+            }
+            onOpenTail={openTailCard}
+            onBack={() => setScreen("hub")}
+            colors={C}
+          />
+        </View>
+      )}
 
       {/* PASSPORT */}
       {screen === "passport" && me && (
@@ -3177,15 +3223,46 @@ export default function App() {
             earnings={earnings}
             isPro={isPro}
             onBack={() => setScreen("hub")}
-            onOpenPro={() => showToast("✨ Pro features coming soon!", 2000)}
+            onOpenPro={() => setScreen("pro")}
             colors={C}
           />
         </View>
       )}
 
-      {/* EARNINGS — paused */}
+      {/* EARNINGS (sub-screen — accessed from Settings) */}
+      {screen === "earnings" && me && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <EarningsScreen
+            me={me}
+            colors={C}
+            streak={streak}
+            earnings={earnings}
+            tailStats={tailStats}
+            isPro={isPro}
+            onBack={() => setScreen("settings")}
+            onOpenPro={() => setScreen("pro")}
+          />
+        </View>
+      )}
 
-      {/* PRO — paused */}
+      {/* PRO */}
+      {screen === "pro" && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <ProScreen
+            colors={C}
+            isPro={isPro}
+            onBack={() => setScreen("hub")}
+            onUpgrade={() => {
+              setIsPro(true);
+              AsyncStorage.setItem("tailme_is_pro", "true").catch(
+                () => {}
+              );
+              showToast("🎉 Welcome to Pro!", 3000);
+              setScreen("hub");
+            }}
+          />
+        </View>
+      )}
 
       {/* SETTINGS (includes earnings section) */}
       {screen === "settings" && me && (
@@ -3502,44 +3579,44 @@ export default function App() {
                 </View>
               )}
 
-              <View
+              <TouchableOpacity
+                onPress={() => setScreen("earnings")}
                 style={{
                   marginTop: 12,
                   paddingVertical: 12,
                   borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: C.border,
+                  borderColor: C.brand,
                   alignItems: "center",
-                  opacity: 0.5,
                 }}
               >
-                <Text style={{ color: C.dim, fontWeight: "900" }}>
-                  💰 Full Earnings Dashboard — Coming Soon
+                <Text style={{ color: C.brand, fontWeight: "900" }}>
+                  View Full Earnings →
                 </Text>
-              </View>
+              </TouchableOpacity>
 
-              <View
-                style={{
-                  marginTop: 8,
-                  paddingVertical: 10,
-                  borderRadius: 14,
-                  backgroundColor: C.brand + "08",
-                  borderWidth: 1,
-                  borderColor: C.border,
-                  alignItems: "center",
-                  opacity: 0.5,
-                }}
-              >
-                <Text
+              {!isPro && (
+                <TouchableOpacity
+                  onPress={() => setScreen("pro")}
                   style={{
-                    color: C.dim,
-                    fontWeight: "900",
-                    fontSize: 12,
+                    marginTop: 8,
+                    paddingVertical: 10,
+                    borderRadius: 14,
+                    backgroundColor: C.brand + "12",
+                    alignItems: "center",
                   }}
                 >
-                  ✨ Pro Features — Coming Soon
-                </Text>
-              </View>
+                  <Text
+                    style={{
+                      color: C.brand,
+                      fontWeight: "900",
+                      fontSize: 12,
+                    }}
+                  >
+                    ✨ Upgrade to Pro — earn on every catch
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Interests */}
@@ -3996,6 +4073,7 @@ export default function App() {
           >
             {[
               { key: "hub",      label: "Home",     icon: "🏠" },
+              { key: "geo",      label: "Map",      icon: "🗺️" },
               { key: "private",  label: "Inbox",    icon: "📬" },
               { key: "passport", label: "Passport", icon: "🛂" },
               { key: "settings", label: "Settings", icon: "⚙️" },
@@ -4010,6 +4088,13 @@ export default function App() {
                   key={it.key}
                   onPress={() => {
                     setScreen(it.key);
+                    if (it.key === "geo" && userLocation) {
+                      socket.emit("get-geo-feed", {
+                        lat: userLocation.lat,
+                        lng: userLocation.lng,
+                        radiusMeters: 10000,
+                      });
+                    }
                   }}
                   style={{
                     flex: 1,

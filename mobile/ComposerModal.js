@@ -45,6 +45,25 @@ const CATEGORIES = [
   { id: "fashion",  icon: "👗" }, { id: "deals",    icon: "🏷️" },
 ];
 
+
+const LAYOUT_OPTIONS = [
+  { id: "B", label: "Split",   desc: "2 equal boxes",        boxes: 2, icon: "◧" },
+  { id: "A", label: "Feature", desc: "2 small + 1 big",      boxes: 3, icon: "◫" },
+  { id: "C", label: "Full",    desc: "Single full frame",     boxes: 1, icon: "▣" },
+  { id: "D", label: "Triple",  desc: "3 equal columns",       boxes: 3, icon: "☰" },
+  { id: "E", label: "Hero",    desc: "Big top + 2 bottom",    boxes: 3, icon: "⬒" },
+];
+
+const BOX_TYPES = [
+  { id: "video",  icon: "🎥", label: "Video"  },
+  { id: "image",  icon: "📸", label: "Photo"  },
+  { id: "reveal", icon: "🔒", label: "Reveal" },
+  { id: "voice",  icon: "🎙", label: "Voice"  },
+  { id: "logo",   icon: "🏷", label: "Logo"   },
+  { id: "text",   icon: "💬", label: "Text"   },
+  { id: "link",   icon: "🔗", label: "Link"   },
+];
+
 export default function ComposerModal({
   visible, onClose, onSend, colors: C,
   isSending, me, isPro,
@@ -72,6 +91,10 @@ export default function ComposerModal({
   const [catchLimit, setCatchLimit] = useState("");
   const [categories, setCategories] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [frameLayout, setFrameLayout] = useState(null);
+  const [revealBox, setRevealBox] = useState(1);
+  const [boxes, setBoxes] = useState([]);
+  const [editingBox, setEditingBox] = useState(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cfg = TYPE_OPTIONS.find(t => t.id === tailType) || TYPE_OPTIONS[0];
@@ -83,6 +106,7 @@ export default function ComposerModal({
     setMonetizedUrl(""); setMode("public"); setRecipients("");
     setExpiryAmount("24"); setExpiryUnit("h"); setCatchLimit("");
     setCategories([]); setShowAdvanced(false);
+    setFrameLayout(null); setRevealBox(1); setBoxes([]); setEditingBox(null);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -154,6 +178,9 @@ export default function ComposerModal({
       monetization: monetizedUrl ? { type: "affiliate", monetizedUrl } : null,
       expiryAmount: parseInt(expiryAmount) || 24,
       expiryUnit,
+      frameLayout: frameLayout || null,
+      revealBox: revealBox,
+      boxes: boxes.length > 0 ? boxes : null,
     });
     reset();
   };
@@ -440,6 +467,181 @@ export default function ComposerModal({
                           minHeight: 100, textAlignVertical: "top", lineHeight: 22,
                         }}
                       />
+                    </View>
+                  )}
+
+                  {/* ── Frame Layout ── */}
+                  <View>
+                    <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
+                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+                      Frame Layout
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}>
+                      {LAYOUT_OPTIONS.map(lo => (
+                        <TouchableOpacity key={lo.id} onPress={() => {
+                          setFrameLayout(frameLayout === lo.id ? null : lo.id);
+                          if (frameLayout !== lo.id) {
+                            const defaultBoxes = [];
+                            for (let i = 0; i < lo.boxes; i++) {
+                              if (i === 0 && videoUri) defaultBoxes.push({ type: "video", uri: videoUri });
+                              else if (i === 0 && photoUri) defaultBoxes.push({ type: "image", uri: photoUri });
+                              else if (i === (lo.boxes - 1)) defaultBoxes.push({ type: "reveal" });
+                              else defaultBoxes.push({ type: "video" });
+                            }
+                            setBoxes(defaultBoxes);
+                            setRevealBox(lo.boxes - 1);
+                          }
+                        }}
+                          style={{
+                            paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14,
+                            borderWidth: 1.5, alignItems: "center", gap: 4, minWidth: 80,
+                            borderColor: frameLayout === lo.id ? cfg.color : bdr,
+                            backgroundColor: frameLayout === lo.id ? `${cfg.color}15` : bg2,
+                          }}>
+                          <Text style={{ fontSize: 22 }}>{lo.icon}</Text>
+                          <Text style={{
+                            color: frameLayout === lo.id ? cfg.color : muted,
+                            fontWeight: "900", fontSize: 10,
+                          }}>{lo.label}</Text>
+                          <Text style={{ color: dim, fontSize: 8 }}>{lo.desc}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* ── Box Editor (when layout selected) ── */}
+                  {frameLayout && boxes.length > 0 && (
+                    <View>
+                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
+                        textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+                        Tap a box to edit · 🔒 = reveal box
+                      </Text>
+                      <View style={{
+                        flexDirection: "row", gap: 6, justifyContent: "center",
+                        padding: 12, borderRadius: 16, backgroundColor: bg2,
+                        borderWidth: 1, borderColor: bdr,
+                      }}>
+                        {boxes.map((box, i) => (
+                          <TouchableOpacity key={i} onPress={() => setEditingBox(editingBox === i ? null : i)}
+                            style={{
+                              flex: 1, height: frameLayout === "C" ? 120 : 80,
+                              borderRadius: 10, borderWidth: 2,
+                              borderColor: editingBox === i ? cfg.color : (box.type === "reveal" ? "#EF4444" : bdr),
+                              backgroundColor: box.type === "reveal" ? "rgba(239,68,68,0.15)" : "#0a0a0a",
+                              alignItems: "center", justifyContent: "center", gap: 4,
+                            }}>
+                            <Text style={{ fontSize: 20 }}>
+                              {box.type === "reveal" ? "🔒" : box.type === "video" ? "🎥" : box.type === "image" ? "📸" : box.type === "voice" ? "🎙" : box.type === "logo" ? "🏷" : box.type === "text" ? "💬" : box.type === "link" ? "🔗" : "📷"}
+                            </Text>
+                            <Text style={{ color: dim, fontSize: 7, fontWeight: "800", textTransform: "uppercase" }}>
+                              {box.type === "reveal" ? "LOCKED" : box.type}
+                            </Text>
+                            {box.uri && <Text style={{ color: "#22C55E", fontSize: 6 }}>✓ media</Text>}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      {/* Edit selected box */}
+                      {editingBox !== null && (
+                        <View style={{
+                          marginTop: 10, padding: 14, borderRadius: 14,
+                          backgroundColor: `${cfg.color}08`, borderWidth: 1, borderColor: `${cfg.color}30`,
+                          gap: 10,
+                        }}>
+                          <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 12 }}>
+                            Box {editingBox + 1} — choose type
+                          </Text>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                            {BOX_TYPES.map(bt => (
+                              <TouchableOpacity key={bt.id} onPress={() => {
+                                const updated = [...boxes];
+                                if (bt.id === "reveal") {
+                                  updated.forEach((b, j) => { if (b.type === "reveal") updated[j] = { ...b, type: "video" }; });
+                                  setRevealBox(editingBox);
+                                }
+                                updated[editingBox] = { ...updated[editingBox], type: bt.id };
+                                setBoxes(updated);
+                              }}
+                                style={{
+                                  flexDirection: "row", alignItems: "center", gap: 5,
+                                  paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10,
+                                  borderWidth: 1.5,
+                                  borderColor: boxes[editingBox]?.type === bt.id ? cfg.color : bdr,
+                                  backgroundColor: boxes[editingBox]?.type === bt.id ? `${cfg.color}15` : bg2,
+                                }}>
+                                <Text style={{ fontSize: 14 }}>{bt.icon}</Text>
+                                <Text style={{
+                                  color: boxes[editingBox]?.type === bt.id ? cfg.color : muted,
+                                  fontWeight: "800", fontSize: 10,
+                                }}>{bt.label}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+
+                          {/* Add media to box */}
+                          {(boxes[editingBox]?.type === "video" || boxes[editingBox]?.type === "image" || boxes[editingBox]?.type === "reveal") && (
+                            <TouchableOpacity onPress={async () => {
+                              const isVid = boxes[editingBox]?.type === "video" || boxes[editingBox]?.type === "reveal";
+                              if (isVid) {
+                                const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                                if (!perm.granted) return;
+                                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos, quality: 0.7, videoMaxDuration: 60 });
+                                if (!result.canceled && result.assets?.[0]) {
+                                  const updated = [...boxes];
+                                  updated[editingBox] = { ...updated[editingBox], uri: result.assets[0].uri };
+                                  setBoxes(updated);
+                                  if (!videoUri) setVideoUri(result.assets[0].uri);
+                                }
+                              } else {
+                                const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                                if (!perm.granted) return;
+                                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+                                if (!result.canceled && result.assets?.[0]) {
+                                  const updated = [...boxes];
+                                  updated[editingBox] = { ...updated[editingBox], uri: result.assets[0].uri };
+                                  setBoxes(updated);
+                                }
+                              }
+                            }}
+                              style={{
+                                padding: 12, borderRadius: 12, backgroundColor: `${cfg.color}15`,
+                                borderWidth: 1, borderColor: `${cfg.color}30`,
+                                alignItems: "center",
+                              }}>
+                              <Text style={{ color: cfg.color, fontWeight: "800", fontSize: 12 }}>
+                                {boxes[editingBox]?.uri ? "✓ Change media" : "📎 Add media"}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* Text input for text/logo/link boxes */}
+                          {boxes[editingBox]?.type === "text" && (
+                            <TextInput
+                              value={boxes[editingBox]?.text || ""} 
+                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], text: t }; setBoxes(u); }}
+                              placeholder="Box text..." placeholderTextColor={dim} multiline
+                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14, minHeight: 60 }}
+                            />
+                          )}
+                          {boxes[editingBox]?.type === "logo" && (
+                            <TextInput
+                              value={boxes[editingBox]?.text || ""}
+                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], text: t }; setBoxes(u); }}
+                              placeholder="Brand name..." placeholderTextColor={dim}
+                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14 }}
+                            />
+                          )}
+                          {boxes[editingBox]?.type === "link" && (
+                            <TextInput
+                              value={boxes[editingBox]?.url || ""}
+                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], url: t }; setBoxes(u); }}
+                              placeholder="https://..." placeholderTextColor={dim} autoCapitalize="none" keyboardType="url"
+                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14 }}
+                            />
+                          )}
+                        </View>
+                      )}
                     </View>
                   )}
 
