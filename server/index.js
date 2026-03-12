@@ -556,7 +556,7 @@ async function scrapeUrl(rawUrl) {
     scrapeCache.set(url, { meta, cachedAt: Date.now() });
     return meta;
   } catch (e) {
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    // scrape error (silent)
     return null;
   }
 }
@@ -580,7 +580,7 @@ async function sendPush(tokens, title, body, data = {}) {
       await expo.sendPushNotificationsAsync(chunk);
     }
   } catch (e) {
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    // push notification error (silent)
   }
 }
 
@@ -709,7 +709,7 @@ io.on("connection", (socket) => {
     });
     socket.username = username;
     socket.emit("registration-complete", { ok: true, username });
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    console.log("User registered:", username);
   });
 
   // ── UPDATE LOCATION ───────────────────────────────────
@@ -857,13 +857,13 @@ io.on("connection", (socket) => {
     const view = publicView(tail);
     if (visibility === "public") {
       io.emit("public-tail-created", view);
-      console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      console.log("Public tail created:", tail.id);
     } else {
       for (const r of recipients) {
         const u = users.get(r);
         if (u?.socketId) io.to(u.socketId).emit("tail-received", view);
       }
-      console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      console.log("Private tail sent:", tail.id);
     }
 
     // Async: scrape URL and update meta
@@ -880,7 +880,7 @@ io.on("connection", (socket) => {
     // Async: geo push notifications
     if (geo) {
       const count = await notifyNearbyUsers(tail);
-      if (count > 0) console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      if (count > 0) console.log("Geo push sent to", count, "users for tail:", tail.id);
     }
 
     // Private: push to offline recipient
@@ -983,7 +983,7 @@ io.on("connection", (socket) => {
       io.emit("tail-closed", {
         tailId, catchCount: tail.catchCount, catchLimit: tail.catchLimit,
       });
-      console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      console.log("Tail closed:", tailId);
     }
 
     io.emit("tail-catch-update", {
@@ -992,7 +992,7 @@ io.on("connection", (socket) => {
       spotsLeft, isFull, mintNumber: tail.catchCount, ts: now,
     });
 
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    console.log("Tail caught:", tailId, "by", socket.username);
 
     // Notify sender
     const sender = users.get(tail.from);
@@ -1069,7 +1069,7 @@ io.on("connection", (socket) => {
         tailId, layerTotal: tail.layers.length,
         finalReveal: tail.layers[tail.layers.length - 1]?.reveal,
       });
-      console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      console.log("Chain complete:", tail.id);
       return;
     }
 
@@ -1171,7 +1171,7 @@ io.on("connection", (socket) => {
       const u = users.get(socket.username);
       if (u) { u.status = "offline"; u.lastSeen = Date.now(); }
       rateLimits.delete(socket.id);
-      console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+      console.log("User disconnected:", socket.username);
     }
   });
 });
@@ -1190,7 +1190,7 @@ setInterval(() => {
       n++;
     }
   }
-  if (n) console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+  if (n) console.log("Expired", n, "tails");
 
   // Decay energy on all active tails
   for (const tail of tails.values()) {
@@ -1252,7 +1252,7 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       targetSocket.emit("new-follower", { from: me });
     }
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    console.log("Follow:", me, "->", target);
   });
 
   socket.on("unfollow-user", ({ target }) => {
