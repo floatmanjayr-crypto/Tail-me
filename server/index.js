@@ -1262,7 +1262,7 @@ io.on("connection", (socket) => {
     socket.emit("follow-updated", {
       following: [...getFollowing(me)],
     });
-    console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
+    console.log("Unfollow:", me, "->", target);
   });
 
   socket.on("get-following", () => {
