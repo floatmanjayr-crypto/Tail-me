@@ -1,33 +1,38 @@
 {
   "expo": {
     "name": "Tail Me",
-    "slug": "tailme",
+    "slug": "tail-me",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#070A0F"
+      "backgroundColor": "#070A0F",
+      "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tailme.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Tail Me uses your location to show nearby tails"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#070A0F"
       },
       "package": "com.tailme.app",
       "versionCode": 1
     },
     "notification": {
-      "icon": "./assets/icon.png",
-      "color": "#7C3AED",
-      "iosDisplayInForeground": true
-    }
+      "icon": "./assets/notification-icon.png",
+      "color": "#7C3AED"
+    },
+    "scheme": "tailme",
+    "plugins": []
   }
 }

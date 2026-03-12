@@ -1243,6 +1243,7 @@ io.on("connection", (socket) => {
     const me = socket.username;
     if (!me || !target || me === target) return;
     getFollowing(me).add(target);
+    saveFollows();
     socket.emit("follow-updated", {
       following: [...getFollowing(me)],
     });
@@ -1259,6 +1260,7 @@ io.on("connection", (socket) => {
     const me = socket.username;
     if (!me || !target) return;
     getFollowing(me).delete(target);
+    saveFollows();
     socket.emit("follow-updated", {
       following: [...getFollowing(me)],
     });
@@ -1271,6 +1273,75 @@ io.on("connection", (socket) => {
     socket.emit("follow-updated", {
       following: [...getFollowing(me)],
     });
+  });
+
+
+  // ── Push Token Registration ────────────────────────
+  socket.on("register-push-token", ({ token }) => {
+    const me = socket.username;
+    if (!me || !token) return;
+    pushTokens.set(me, token);
+    savePushTokens();
+    console.log("Push token registered for:", me);
+  });
+
+  // ── User Profile ──────────────────────────────────
+  socket.on("get-user-profile", ({ username }) => {
+    if (!username) return;
+    const userTails = [...tails.values()]
+      .filter(t => !t.expired && t.from === username)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 30)
+      .map(publicView);
+
+    socket.emit("user-profile", {
+      username,
+      tails: userTails,
+      followerCount: getFollowerCount(username),
+      followingCount: getFollowing(username).size,
+      tailCount: userTails.length,
+      isOnline: [...io.sockets.sockets.values()].some(s => s.username === username),
+    });
+  });
+
+  // ── Search Users ──────────────────────────────────
+  socket.on("search-users", ({ query }) => {
+    const me = socket.username;
+    if (!query || query.length < 1) {
+      // Return suggested users (most tails, online first)
+      const suggested = [...users.entries()]
+        .filter(([name]) => name !== me)
+        .map(([name, data]) => ({
+          username: name,
+          tailCount: [...tails.values()].filter(t => !t.expired && t.from === name).length,
+          followerCount: getFollowerCount(name),
+          isOnline: data.status === "online",
+        }))
+        .sort((a, b) => (b.isOnline - a.isOnline) || (b.tailCount - a.tailCount))
+        .slice(0, 30);
+      socket.emit("search-results", { users: suggested, query: "" });
+      return;
+    }
+    const q = query.toLowerCase();
+    const results = [...users.entries()]
+      .filter(([name]) => name.toLowerCase().includes(q) && name !== me)
+      .slice(0, 20)
+      .map(([name, data]) => ({
+        username: name,
+        tailCount: [...tails.values()].filter(t => !t.expired && t.from === name).length,
+        followerCount: getFollowerCount(name),
+        isOnline: data.status === "online",
+      }));
+    socket.emit("search-results", { users: results, query });
+  });
+
+  // ── Analytics ─────────────────────────────────────
+  socket.on("track-event", ({ event, data }) => {
+    const me = socket.username;
+    analyticsEvents.push({ event, data, user: me, ts: Date.now() });
+    if (analyticsEvents.length > 10000) {
+      analyticsEvents.splice(0, analyticsEvents.length - 5000);
+    }
   });
 
   socket.on("get-following-feed", () => {

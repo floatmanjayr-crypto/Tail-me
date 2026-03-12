@@ -584,7 +584,7 @@ const ExpandedReveal = ({ tail, onClose, onCatch, onOpenLink, onReact, colors: C
 };
 
 // ── Spotlight Bar ────────────────────────────────────────
-const SpotlightBar = ({ username, tailCount, onClose, following = [], onFollowUser, colors: C }) => {
+const SpotlightBar = ({ username, tailCount, onClose, following = [], onFollowUser, onOpenProfile, colors: C }) => {
   const slideAnim = useRef(new Animated.Value(80)).current;
 
   useEffect(() => {
@@ -614,7 +614,9 @@ const SpotlightBar = ({ username, tailCount, onClose, following = [], onFollowUs
         <Text style={{ fontSize: 14 }}>🦊</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: C.text, fontWeight: "900", fontSize: 13 }}>{username}</Text>
+        <TouchableOpacity onPress={() => onOpenProfile?.(username)}>
+          <Text style={{ color: C.text, fontWeight: "900", fontSize: 13 }}>{username}</Text>
+        </TouchableOpacity>
         <Text style={{ color: C.muted, fontSize: 10 }}>{tailCount} active tail{tailCount !== 1 ? "s" : ""} highlighted</Text>
       </View>
       <TouchableOpacity
@@ -658,6 +660,9 @@ export default function TailHome({
   onFollowUser,
   onUnfollowUser,
   isFollowing: isFollowingFn,
+  onShareTail,
+  onOpenProfile,
+  onOpenSearch,
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
@@ -1035,6 +1040,13 @@ export default function TailHome({
                   borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C.border,
                   alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onOpenSearch}
+                style={{ width: 36, height: 36, borderRadius: 11,
+                  backgroundColor: C.panel,
+                  borderWidth: 1.5, borderColor: C.border,
+                  alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 15 }}>🔍</Text>
                 {inboxCount > 0 && (
                   <View style={{ position: "absolute", top: -4, right: -4,
                     width: 15, height: 15, borderRadius: 8, backgroundColor: "#7C3AED",
@@ -1155,6 +1167,7 @@ export default function TailHome({
               onClose={() => setHighlightedUser(null)}
               following={following}
               onFollowUser={onFollowUser}
+              onOpenProfile={onOpenProfile}
               colors={C}
             />
           )}

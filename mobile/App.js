@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
+  Share,
   Alert,
   Image,
   Keyboard,
@@ -45,6 +46,9 @@ import GeoScreen from "./GeoScreen";
 import CatchPassport from "./CatchPassport";
 import ChainTailModal from "./ChainTailModal";
 import { socket, SOCKET_URL } from "./socket";
+import ProfileScreen from "./ProfileScreen";
+import SearchScreen from "./SearchScreen";
+import useAnalytics from "./useAnalytics";
 
 // ── Notification handler ────────────────────────────────
 try {
@@ -318,6 +322,8 @@ export default function App() {
   const [composeMonetizationType, setComposeMonetizationType] = useState("direct");
   const [composeCategories, setComposeCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("foryou");
+  const [profileUser, setProfileUser] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
   const [composeRevealSkin, setComposeRevealSkin] = useState("default");
 
   // ── Refs for closure-safe access ──────────────────────
@@ -567,6 +573,14 @@ export default function App() {
     socket.on("new-follower", onNewFollower);
     socket.on("following-feed", onFollowingFeed);
 
+    // Profile + Search listeners
+    const onUserProfile = (data) => {};  // handled in ProfileScreen
+    const onSearchResults = (data) => {
+      setSearchResults(data.users || []);
+    };
+    socket.on("user-profile", onUserProfile);
+    socket.on("search-results", onSearchResults);
+
     return () => {
       socket.off("public-feed", onPublicFeed);
       socket.off("smart-feed", onSmartFeed);
@@ -585,6 +599,8 @@ export default function App() {
       socket.off("follow-updated", onFollowUpdated);
       socket.off("new-follower", onNewFollower);
       socket.off("following-feed", onFollowingFeed);
+      socket.off("user-profile", onUserProfile);
+      socket.off("search-results", onSearchResults);
     };
   }, [showToast]);
 
@@ -645,6 +661,22 @@ export default function App() {
         socket.emit("get-smart-feed");
         socket.emit("get-public-feed");
       socket.emit("get-following");
+
+        // Register push token
+        try {
+          const { status } = await Notifications.getPermissionsAsync();
+          let finalStatus = status;
+          if (status !== "granted") {
+            const { status: s2 } = await Notifications.requestPermissionsAsync();
+            finalStatus = s2;
+          }
+          if (finalStatus === "granted") {
+            const tokenData = await Notifications.getExpoPushTokenAsync();
+            if (tokenData?.data) {
+              socket.emit("register-push-token", { token: tokenData.data });
+            }
+          }
+        } catch (e) {}
         socket.emit("get-passport", { username: u });
         if (userLocation) {
           socket.emit("get-geo-feed", {
@@ -654,6 +686,7 @@ export default function App() {
           });
         }
         showToast(`✨ Welcome ${u}!`);
+        track("login", { username: u });
       } else {
         showToast(`❌ Login failed: ${res?.error || "Unknown error"}`, 2500);
       }
@@ -800,23 +833,46 @@ export default function App() {
   const followUser = useCallback((target) => {
     if (!target || target === me?.username) return;
     socket.emit("follow-user", { target });
+    track("follow", { target });
   }, [me?.username]);
 
   const unfollowUser = useCallback((target) => {
     if (!target) return;
     socket.emit("unfollow-user", { target });
+    track("unfollow", { target });
   }, []);
 
   const isFollowing = useCallback((username) => {
     return following.includes(username);
   }, [following]);
 
+  const openProfile = useCallback((username) => {
+    if (!username) return;
+    setProfileUser(username);
+    setScreen("profile");
+    track("view_profile", { username });
+  }, [track]);
+
+  const shareTail = useCallback(async (tail) => {
+    if (!tail) return;
+    try {
+      const title = tail.meta?.title || tail.title || tail.message || "Check this out!";
+      const url = tail.url || "";
+      await Share.share({
+        message: `${title}${url ? " — " + url : ""} | Shared via Tail Me 🦊`,
+      });
+      track("share_tail", { tailId: tail.id });
+    } catch (e) {}
+  }, [track]);
+
   const toggleFollow = useCallback((target) => {
     if (!target || target === me?.username) return;
     if (following.includes(target)) {
       socket.emit("unfollow-user", { target });
+    track("unfollow", { target });
     } else {
       socket.emit("follow-user", { target });
+    track("follow", { target });
     }
   }, [following, me?.username]);
 
@@ -3038,6 +3094,9 @@ export default function App() {
             following={following}
             followingFeed={followingFeed}
             onFollowUser={toggleFollow}
+            onShareTail={shareTail}
+            onOpenProfile={openProfile}
+            onOpenSearch={() => setScreen("search")}
             onUnfollowUser={unfollowUser}
             isFollowing={isFollowing}
             selectedCategory={categoryFilter}
@@ -3165,6 +3224,37 @@ export default function App() {
       )}
 
       {/* GEO MAP */}
+      {/* PROFILE */}
+      {screen === "profile" && me && profileUser && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <ProfileScreen
+            username={profileUser}
+            me={me}
+            isFollowing={isFollowing}
+            onFollow={toggleFollow}
+            onUnfollow={unfollowUser}
+            onOpenTail={openTailCard}
+            onBack={() => setScreen("hub")}
+            colors={C}
+          />
+        </View>
+      )}
+
+      {/* SEARCH / DISCOVER */}
+      {screen === "search" && me && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <SearchScreen
+            me={me}
+            isFollowing={isFollowing}
+            onFollow={toggleFollow}
+            onUnfollow={unfollowUser}
+            onOpenProfile={openProfile}
+            onBack={() => setScreen("hub")}
+            colors={C}
+          />
+        </View>
+      )}
+
       {/* GEO — paused */}
 
       {/* PASSPORT */}
