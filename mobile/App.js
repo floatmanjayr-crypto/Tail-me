@@ -327,6 +327,7 @@ export default function App() {
   const [composeRevealSkin, setComposeRevealSkin] = useState("default");
 
   // ── Refs for closure-safe access ──────────────────────
+  const { track } = useAnalytics();
   const meRef = useRef(null);
   const activeTailRef = useRef(null);
   const toastTimerRef = useRef(null);
