@@ -1033,15 +1033,8 @@ export default function App() {
 
       const revealVal = revealValue.trim();
 
-      if (!revealVal && composeTailType !== "CHAIN") {
-        Alert.alert(
-          "Missing Reveal",
-          `Please enter a ${revealKind} value in Step 2.\n\nThis is what catchers will unlock.`,
-          [{ text: "Go to Step 2", onPress: () => setComposerStep(2) }]
-        );
-        resetGuards();
-        return;
-      }
+      // Reveal is optional — skip if empty
+      // if (!revealVal && composeTailType !== "CHAIN") { ... }
 
       if (composerMode === "private") {
         const to = composeTo.trim().replace(/^@/, "");
