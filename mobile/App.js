@@ -406,22 +406,22 @@ export default function App() {
     }
   }, [me?.interests]);
 
-  // ── Location ──────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setUserLocation({
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-        });
-      } catch {}
-    })();
-  }, []);
+  // ── Location (paused — geo features disabled) ───────
+  // useEffect(() => {
+  //   (async () => {
+  //     try {
+  //       const { status } = await Location.requestForegroundPermissionsAsync();
+  //       if (status !== "granted") return;
+  //       const loc = await Location.getCurrentPositionAsync({
+  //         accuracy: Location.Accuracy.Balanced,
+  //       });
+  //       setUserLocation({
+  //         lat: loc.coords.latitude,
+  //         lng: loc.coords.longitude,
+  //       });
+  //     } catch {}
+  //   })();
+  // }, []);
 
   // ── Notifications ─────────────────────────────────────
   useEffect(() => {
