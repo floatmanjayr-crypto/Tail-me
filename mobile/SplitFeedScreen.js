@@ -32,7 +32,7 @@ export default function SplitFeedScreen({ tails = [], onCatch, colors: C }) {
 
   if (feedTails.length === 0) {
     return (
-      <View style={styles.empty}>
+      <View style={[styles.empty, { backgroundColor: C?.bg || "#000" }]}>
         <Text style={styles.emptyIcon}>🎬</Text>
         <Text style={styles.emptyTitle}>No frame tails yet</Text>
         <Text style={styles.emptySub}>Send a tail with a split frame layout</Text>
@@ -41,7 +41,7 @@ export default function SplitFeedScreen({ tails = [], onCatch, colors: C }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: C?.bg || "#000" }]}>
       <FlatList
         data={feedTails}
         renderItem={renderItem}

@@ -667,7 +667,7 @@ export default function TailHome({
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
   const [highlightedUser, setHighlightedUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("grid");
+  const [activeTab, setActiveTab] = useState("feed");
   const flatListRef = useRef(null);
 
   const handleRefresh = useCallback(async () => {

@@ -1,32 +1,33 @@
 // ============================================================
-// ComposerModal.js — Clean v8
-// Step 1: Hook + content upload + type (optional extras)
-// Step 2: Audience + expiry + send
+// ComposerModal.js — v9 SplitFrame Studio
+// Step 1: FRAME — pick layout, fill boxes
+// Step 2: HOOK  — hook message, tail type, reveal content
+// Step 3: LAUNCH — audience, expiry, send
 // ============================================================
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
   View, Text, Modal, TouchableOpacity, TextInput,
   ScrollView, Animated, Pressable,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, Dimensions,
 } from "react-native";
 
+const { width: SW } = Dimensions.get("window");
+
 const TYPE_OPTIONS = [
-  { id: "LOOK",  icon: "👀", label: "LOOK",  desc: "Standard tail",    color: "#7C3AED" },
-  { id: "NOW",   icon: "⚡", label: "NOW",   desc: "Expires fast",     color: "#F59E0B" },
-  { id: "DROP",  icon: "💧", label: "DROP",  desc: "Limited catches",  color: "#EF4444" },
-  { id: "GEO",   icon: "📍", label: "GEO",   desc: "Location-based",   color: "#0EA5E9" },
-  { id: "CHAIN", icon: "🔗", label: "CHAIN", desc: "Pass it on",       color: "#22C55E" },
+  { id: "LOOK",  icon: "👀", label: "LOOK",  desc: "Standard tail",   color: "#7C3AED" },
+  { id: "NOW",   icon: "⚡", label: "NOW",   desc: "Expires fast",    color: "#F59E0B" },
+  { id: "DROP",  icon: "💧", label: "DROP",  desc: "Limited catches", color: "#EF4444" },
+  { id: "GEO",   icon: "📍", label: "GEO",   desc: "Location-based",  color: "#0EA5E9" },
+  { id: "CHAIN", icon: "🔗", label: "CHAIN", desc: "Pass it on",      color: "#22C55E" },
 ];
 
-const CONTENT_TYPES = [
-  { id: "video",   icon: "🎥", label: "Video",   sub: "first 3s in grid" },
-  { id: "photo",   icon: "📸", label: "Photo",   sub: "image reveal"     },
-  { id: "voice",   icon: "🎙", label: "Voice",   sub: "coming soon"      },
-  { id: "coupon",  icon: "🎟", label: "Coupon",  sub: "discount code"    },
-  { id: "gift",    icon: "💰", label: "Gift",    sub: "send money"       },
-  { id: "link",    icon: "🔗", label: "Link",    sub: "any URL"          },
-  { id: "message", icon: "💬", label: "Message", sub: "text only"        },
+const REVEAL_TYPES = [
+  { id: "message", icon: "💬", label: "Message",  sub: "secret text"     },
+  { id: "coupon",  icon: "🎟", label: "Coupon",   sub: "discount code"   },
+  { id: "gift",    icon: "💰", label: "Gift",     sub: "send money"      },
+  { id: "link",    icon: "🔗", label: "Link",     sub: "any URL"         },
+  { id: "voice",   icon: "🎙", label: "Voice",    sub: "coming soon"     },
 ];
 
 const PAYMENT_APPS = [
@@ -45,125 +46,392 @@ const CATEGORIES = [
   { id: "fashion",  icon: "👗" }, { id: "deals",    icon: "🏷️" },
 ];
 
-
-const LAYOUT_OPTIONS = [
-  { id: "B", label: "Split",   desc: "2 equal boxes",        boxes: 2, icon: "◧" },
-  { id: "A", label: "Feature", desc: "2 small + 1 big",      boxes: 3, icon: "◫" },
-  { id: "C", label: "Full",    desc: "Single full frame",     boxes: 1, icon: "▣" },
-  { id: "D", label: "Triple",  desc: "3 equal columns",       boxes: 3, icon: "☰" },
-  { id: "E", label: "Hero",    desc: "Big top + 2 bottom",    boxes: 3, icon: "⬒" },
+// Layout definitions with visual preview structure
+const LAYOUTS = [
+  {
+    id: "B", label: "Split", icon: "◧", desc: "2 equal",
+    boxes: 2,
+    preview: [{ flex: 1 }, { flex: 1 }],
+    direction: "row",
+  },
+  {
+    id: "A", label: "Feature", icon: "◫", desc: "Big + 2",
+    boxes: 3,
+    preview: [{ flex: 2 }, { flex: 1, column: [{ flex: 1 }, { flex: 1 }] }],
+    direction: "row",
+  },
+  {
+    id: "C", label: "Full", icon: "▣", desc: "Single",
+    boxes: 1,
+    preview: [{ flex: 1 }],
+    direction: "row",
+  },
+  {
+    id: "D", label: "Triple", icon: "☰", desc: "3 cols",
+    boxes: 3,
+    preview: [{ flex: 1 }, { flex: 1 }, { flex: 1 }],
+    direction: "row",
+  },
+  {
+    id: "E", label: "Hero", icon: "⬒", desc: "Big + 2 bottom",
+    boxes: 3,
+    preview: [{ flex: 2, full: true }, { flex: 1, bottom: [{ flex: 1 }, { flex: 1 }] }],
+    direction: "column",
+  },
 ];
 
-const BOX_TYPES = [
+const BOX_CONTENT_OPTIONS = [
   { id: "video",  icon: "🎥", label: "Video"  },
   { id: "image",  icon: "📸", label: "Photo"  },
   { id: "reveal", icon: "🔒", label: "Reveal" },
   { id: "voice",  icon: "🎙", label: "Voice"  },
-  { id: "logo",   icon: "🏷", label: "Logo"   },
   { id: "text",   icon: "💬", label: "Text"   },
+  { id: "logo",   icon: "🏷", label: "Logo"   },
   { id: "link",   icon: "🔗", label: "Link"   },
 ];
 
+// ── Layout Preview Component ─────────────────────────────
+const LayoutPreview = ({ layout, boxes, isSelected, color, onPress, size = 72 }) => {
+  const bdr = isSelected ? color : "#1E293B";
+  const bg = isSelected ? `${color}20` : "#0A1020";
+
+  const renderMiniBox = (box, idx, h, w = "100%") => {
+    const type = box?.type;
+    const hasMedia = box?.uri;
+    return (
+      <View key={idx} style={{
+        flex: 1, height: h, width: w,
+        borderRadius: 4, margin: 1.5,
+        backgroundColor: type === "reveal" ? "rgba(239,68,68,0.3)"
+          : hasMedia ? `${color}30` : "#111827",
+        borderWidth: 1,
+        borderColor: type === "reveal" ? "#EF4444" : isSelected ? `${color}40` : "#1E293B",
+        alignItems: "center", justifyContent: "center",
+      }}>
+        <Text style={{ fontSize: 10 }}>
+          {type === "reveal" ? "🔒"
+            : type === "video" ? "🎥"
+            : type === "image" ? "📸"
+            : type === "text" ? "💬"
+            : type === "logo" ? "🏷"
+            : type === "voice" ? "🎙"
+            : type === "link" ? "🔗"
+            : "＋"}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderPreview = () => {
+    if (layout.id === "E") {
+      return (
+        <View style={{ flex: 1, gap: 1 }}>
+          {renderMiniBox(boxes[0], 0, size * 0.5)}
+          <View style={{ flexDirection: "row", flex: 1, gap: 1 }}>
+            {renderMiniBox(boxes[1], 1, size * 0.35)}
+            {renderMiniBox(boxes[2], 2, size * 0.35)}
+          </View>
+        </View>
+      );
+    }
+    if (layout.id === "A") {
+      return (
+        <View style={{ flex: 1, flexDirection: "row", gap: 1 }}>
+          {renderMiniBox(boxes[0], 0, size * 0.7)}
+          <View style={{ flex: 1, gap: 1 }}>
+            {renderMiniBox(boxes[1], 1, size * 0.3)}
+            {renderMiniBox(boxes[2], 2, size * 0.3)}
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={{ flex: 1, flexDirection: "row", gap: 1 }}>
+        {(boxes.length > 0 ? boxes : Array(layout.boxes).fill({})).map((b, i) =>
+          renderMiniBox(b, i, size * 0.7)
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <TouchableOpacity onPress={onPress} style={{
+      width: size + 16, alignItems: "center", gap: 6,
+    }}>
+      <View style={{
+        width: size + 16, height: size,
+        borderRadius: 12, borderWidth: 2,
+        borderColor: bdr, backgroundColor: bg,
+        padding: 4, overflow: "hidden",
+      }}>
+        {renderPreview()}
+      </View>
+      <Text style={{
+        color: isSelected ? color : "#64748B",
+        fontSize: 10, fontWeight: "900",
+      }}>{layout.label}</Text>
+      <Text style={{ color: "#334155", fontSize: 8 }}>{layout.desc}</Text>
+    </TouchableOpacity>
+  );
+};
+
+// ── Box Editor ───────────────────────────────────────────
+const BoxEditor = ({ box, index, isSelected, color, onSelect, onUpdate, bg2, bdr, txt, dim, muted }) => {
+  const type = box?.type || "empty";
+  const hasMedia = box?.uri;
+
+  const pickMedia = async (isVideo) => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: isVideo ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
+      quality: isVideo ? 0.7 : 0.8,
+      videoMaxDuration: isVideo ? 60 : undefined,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      onUpdate({ uri: result.assets[0].uri });
+    }
+  };
+
+  return (
+    <View style={{
+      marginBottom: 10, borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: isSelected ? color : bdr,
+      backgroundColor: isSelected ? `${color}08` : bg2,
+      overflow: "hidden",
+    }}>
+      {/* Box header */}
+      <TouchableOpacity onPress={onSelect} style={{
+        flexDirection: "row", alignItems: "center", gap: 10,
+        padding: 12,
+      }}>
+        <View style={{
+          width: 32, height: 32, borderRadius: 8,
+          backgroundColor: type === "reveal" ? "rgba(239,68,68,0.2)" : `${color}20`,
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <Text style={{ fontSize: 16 }}>
+            {type === "reveal" ? "🔒" : type === "video" ? "🎥" : type === "image" ? "📸"
+              : type === "voice" ? "🎙" : type === "text" ? "💬" : type === "logo" ? "🏷"
+              : type === "link" ? "🔗" : "＋"}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: isSelected ? color : txt, fontWeight: "900", fontSize: 13 }}>
+            Box {index + 1} — {type === "reveal" ? "🔒 Reveal (locked)" : type === "empty" ? "Tap to set up" : type}
+          </Text>
+          {hasMedia && <Text style={{ color: "#22C55E", fontSize: 10, fontWeight: "800" }}>✓ Media added</Text>}
+        </View>
+        <Text style={{ color: dim, fontSize: 14 }}>{isSelected ? "▲" : "▼"}</Text>
+      </TouchableOpacity>
+
+      {/* Expanded editor */}
+      {isSelected && (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 14, gap: 10 }}>
+          {/* Type chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {BOX_CONTENT_OPTIONS.map(bt => (
+              <TouchableOpacity key={bt.id} onPress={() => onUpdate({ type: bt.id })}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 5,
+                  paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: type === bt.id ? (bt.id === "reveal" ? "#EF4444" : color) : bdr,
+                  backgroundColor: type === bt.id ? (bt.id === "reveal" ? "rgba(239,68,68,0.12)" : `${color}15`) : "#0A1020",
+                }}>
+                <Text style={{ fontSize: 12 }}>{bt.icon}</Text>
+                <Text style={{
+                  color: type === bt.id ? (bt.id === "reveal" ? "#EF4444" : color) : muted,
+                  fontWeight: "800", fontSize: 10,
+                }}>{bt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Media picker */}
+          {(type === "video" || type === "image" || type === "reveal") && (
+            <TouchableOpacity onPress={() => pickMedia(type === "video" || type === "reveal")}
+              style={{
+                padding: 11, borderRadius: 12,
+                backgroundColor: hasMedia ? "rgba(34,197,94,0.1)" : `${color}12`,
+                borderWidth: 1,
+                borderColor: hasMedia ? "#22C55E40" : `${color}30`,
+                alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8,
+              }}>
+              <Text style={{ fontSize: 14 }}>{hasMedia ? "✓" : "📎"}</Text>
+              <Text style={{
+                color: hasMedia ? "#22C55E" : color,
+                fontWeight: "800", fontSize: 12,
+              }}>{hasMedia ? "Media added — tap to change" : `Add ${type === "image" ? "photo" : "video"}`}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Text input */}
+          {(type === "text" || type === "logo") && (
+            <TextInput
+              value={box?.text || ""}
+              onChangeText={t => onUpdate({ text: t })}
+              placeholder={type === "logo" ? "Brand name..." : "Box text..."}
+              placeholderTextColor={dim}
+              style={{
+                backgroundColor: "#0A1020", borderRadius: 12,
+                borderWidth: 1, borderColor: bdr,
+                color: txt, padding: 12, fontSize: 14,
+              }}
+            />
+          )}
+
+          {type === "link" && (
+            <TextInput
+              value={box?.url || ""}
+              onChangeText={t => onUpdate({ url: t })}
+              placeholder="https://..."
+              placeholderTextColor={dim}
+              autoCapitalize="none" keyboardType="url"
+              style={{
+                backgroundColor: "#0A1020", borderRadius: 12,
+                borderWidth: 1, borderColor: bdr,
+                color: txt, padding: 12, fontSize: 14,
+              }}
+            />
+          )}
+
+          {type === "voice" && (
+            <View style={{
+              padding: 12, borderRadius: 12,
+              backgroundColor: "rgba(124,58,237,0.1)",
+              alignItems: "center",
+            }}>
+              <Text style={{ color: muted, fontSize: 12 }}>🎙 Voice notes coming soon</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
+
+// ── Main ComposerModal ───────────────────────────────────
 export default function ComposerModal({
   visible, onClose, onSend, colors: C,
   isSending, me, isPro,
 }) {
   const [step, setStep] = useState(1);
+
+  // Step 1 — Frame
+  const [frameLayout, setFrameLayout] = useState("B");
+  const [boxes, setBoxes] = useState([{ type: "video" }, { type: "reveal" }]);
+  const [editingBox, setEditingBox] = useState(null);
+
+  // Step 2 — Hook
   const [tailType, setTailType] = useState("LOOK");
   const [message, setMessage] = useState("");
-  const [contentType, setContentType] = useState(null);
-
-  // content values
-  const [videoUri, setVideoUri]     = useState(null);
-  const [photoUri, setPhotoUri]     = useState(null);
-  const [linkUrl, setLinkUrl]       = useState("");
+  const [revealType, setRevealType] = useState("message");
   const [revealText, setRevealText] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [giftAmount, setGiftAmount] = useState("");
-  const [giftApps, setGiftApps]     = useState(["cashapp", "venmo"]);
+  const [giftApps, setGiftApps] = useState(["cashapp", "venmo"]);
+  const [linkUrl, setLinkUrl] = useState("");
   const [monetizedUrl, setMonetizedUrl] = useState("");
 
-  // step 2
-  const [mode, setMode]             = useState("public");
+  // Step 3 — Launch
+  const [mode, setMode] = useState("public");
   const [recipients, setRecipients] = useState("");
   const [expiryAmount, setExpiryAmount] = useState("24");
   const [expiryUnit, setExpiryUnit] = useState("h");
   const [catchLimit, setCatchLimit] = useState("");
   const [categories, setCategories] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [frameLayout, setFrameLayout] = useState(null);
-  const [revealBox, setRevealBox] = useState(1);
-  const [boxes, setBoxes] = useState([]);
-  const [editingBox, setEditingBox] = useState(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cfg = TYPE_OPTIONS.find(t => t.id === tailType) || TYPE_OPTIONS[0];
+  const currentLayout = LAYOUTS.find(l => l.id === frameLayout) || LAYOUTS[0];
+
+  const bg   = C?.panel    || "#0D1220";
+  const bg2  = C?.panel2   || "#111827";
+  const bdr  = C?.border   || "#1E293B";
+  const txt  = C?.text     || "#E5E7EB";
+  const muted = C?.muted   || "#94A3B8";
+  const dim  = C?.dim      || "#64748B";
 
   const reset = () => {
-    setStep(1); setTailType("LOOK"); setMessage(""); setContentType(null);
-    setVideoUri(null); setPhotoUri(null); setLinkUrl(""); setRevealText("");
-    setCouponCode(""); setGiftAmount(""); setGiftApps(["cashapp","venmo"]);
-    setMonetizedUrl(""); setMode("public"); setRecipients("");
-    setExpiryAmount("24"); setExpiryUnit("h"); setCatchLimit("");
-    setCategories([]); setShowAdvanced(false);
-    setFrameLayout(null); setRevealBox(1); setBoxes([]); setEditingBox(null);
+    setStep(1);
+    setFrameLayout("B"); setBoxes([{ type: "video" }, { type: "reveal" }]); setEditingBox(null);
+    setTailType("LOOK"); setMessage(""); setRevealType("message");
+    setRevealText(""); setCouponCode(""); setGiftAmount("");
+    setGiftApps(["cashapp", "venmo"]); setLinkUrl(""); setMonetizedUrl("");
+    setMode("public"); setRecipients(""); setExpiryAmount("24");
+    setExpiryUnit("h"); setCatchLimit(""); setCategories([]); setShowAdvanced(false);
   };
 
   const handleClose = () => { reset(); onClose(); };
 
-  const goStep2 = () => {
-    if (!message.trim()) { Alert.alert("Add a hook", "Write something to draw people in."); return; }
-    Animated.timing(slideAnim, { toValue: -400, duration: 200, useNativeDriver: true }).start(() => {
-      setStep(2); slideAnim.setValue(400);
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200 }).start();
+  const animateStep = (nextStep, direction = 1) => {
+    Animated.timing(slideAnim, {
+      toValue: -400 * direction, duration: 200, useNativeDriver: true,
+    }).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(400 * direction);
+      Animated.spring(slideAnim, {
+        toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200,
+      }).start();
     });
   };
 
-  const goStep1 = () => {
-    Animated.timing(slideAnim, { toValue: 400, duration: 200, useNativeDriver: true }).start(() => {
-      setStep(1); slideAnim.setValue(-400);
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200 }).start();
-    });
-  };
-
-  const pickVideo = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      quality: 0.7, videoMaxDuration: 60,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setVideoUri(result.assets[0].uri);
-      setContentType("video");
+  const goNext = () => {
+    if (step === 1) {
+      animateStep(2, 1);
+    } else if (step === 2) {
+      if (!message.trim()) { Alert.alert("Add a hook", "Write something to draw people in."); return; }
+      animateStep(3, 1);
     }
   };
 
-  const pickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8,
+  const goBack = () => {
+    if (step === 2) animateStep(1, -1);
+    else if (step === 3) animateStep(2, -1);
+  };
+
+  const selectLayout = (layoutId) => {
+    const lo = LAYOUTS.find(l => l.id === layoutId);
+    if (!lo) return;
+    setFrameLayout(layoutId);
+    setEditingBox(null);
+    // Build default boxes — last box is always reveal
+    const newBoxes = Array(lo.boxes).fill(null).map((_, i) => {
+      if (i === 0) return { type: "video" };
+      if (i === lo.boxes - 1) return { type: "reveal" };
+      return { type: "video" };
     });
-    if (!result.canceled && result.assets?.[0]) {
-      setPhotoUri(result.assets[0].uri);
-      setContentType("photo");
+    setBoxes(newBoxes);
+  };
+
+  const updateBox = (index, updates) => {
+    const updated = [...boxes];
+    // If setting as reveal, clear other reveals
+    if (updates.type === "reveal") {
+      updated.forEach((b, j) => { if (b.type === "reveal" && j !== index) updated[j] = { ...b, type: "video" }; });
+    }
+    updated[index] = { ...updated[index], ...updates };
+    setBoxes(updated);
+  };
+
+  const buildReveal = () => {
+    switch (revealType) {
+      case "coupon":  return { kind: "coupon",  code: couponCode };
+      case "gift":    return { kind: "gift",    amount: parseFloat(giftAmount), paymentApps: giftApps, message: revealText };
+      case "link":    return { kind: "url",     url: linkUrl };
+      case "voice":   return { kind: "voice" };
+      case "message": 
+      default:        return { kind: "message", text: revealText };
     }
   };
 
   const handleSend = () => {
-    const buildReveal = () => {
-      switch (contentType) {
-        case "video":   return { kind: "video",   url: videoUri };
-        case "photo":   return { kind: "photo",   url: photoUri };
-        case "voice":   return { kind: "voice" };
-        case "coupon":  return { kind: "coupon",  code: couponCode };
-        case "gift":    return { kind: "gift",    amount: parseFloat(giftAmount), paymentApps: giftApps };
-        case "link":    return { kind: "url",     url: linkUrl };
-        case "message": return { kind: "message", text: revealText };
-        default:        return null;
-      }
-    };
+    const videoBox = boxes.find(b => b.type === "video" && b.uri);
+    const imageBox = boxes.find(b => b.type === "image" && b.uri);
+    const revealBoxIndex = boxes.findIndex(b => b.type === "reveal");
 
     onSend({
       tailType,
@@ -173,65 +441,79 @@ export default function ComposerModal({
       catchLimit: catchLimit ? parseInt(catchLimit) : null,
       categories,
       reveal: buildReveal(),
-      videoUri: videoUri || null,
-      photoUri: photoUri || null,
+      videoUri: videoBox?.uri || null,
+      photoUri: imageBox?.uri || null,
+      previewUrl: videoBox?.uri || null,
+      mediaUrl: imageBox?.uri || videoBox?.uri || null,
       monetization: monetizedUrl ? { type: "affiliate", monetizedUrl } : null,
       expiryAmount: parseInt(expiryAmount) || 24,
       expiryUnit,
-      frameLayout: frameLayout || null,
-      revealBox: revealBox,
-      boxes: boxes.length > 0 ? boxes : null,
+      frameLayout,
+      revealBox: revealBoxIndex >= 0 ? revealBoxIndex : boxes.length - 1,
+      boxes,
     });
     reset();
   };
 
-  const bg   = C?.panel    || "#0D1220";
-  const bg2  = C?.panel2   || "#111827";
-  const bdr  = C?.border   || "#1E293B";
-  const txt  = C?.text     || "#E5E7EB";
-  const muted = C?.muted   || "#64748B";
-  const dim  = C?.dim      || "#334155";
+  const revealBoxIndex = boxes.findIndex(b => b.type === "reveal");
+  const hasReveal = revealBoxIndex >= 0;
 
   if (!visible) return null;
+
+  const STEP_LABELS = ["Frame", "Hook", "Launch"];
 
   return (
     <Modal visible={visible} transparent animationType="slide"
       onRequestClose={handleClose} statusBarTranslucent>
       <KeyboardAvoidingView style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }} onPress={handleClose} />
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)" }} onPress={handleClose} />
 
         <View style={{
-          backgroundColor: bg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-          borderWidth: 1, borderColor: bdr, maxHeight: "92%",
+          backgroundColor: bg,
+          borderTopLeftRadius: 28, borderTopRightRadius: 28,
+          borderWidth: 1, borderColor: bdr, maxHeight: "93%",
         }}>
           {/* Handle */}
-          <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }}>
+          <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 2 }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: `${cfg.color}50` }} />
           </View>
 
           {/* Header */}
           <View style={{
             flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-            paddingHorizontal: 20, paddingVertical: 10,
+            paddingHorizontal: 18, paddingVertical: 10,
             borderBottomWidth: 1, borderBottomColor: bdr,
           }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {step === 2 && (
-                <TouchableOpacity onPress={goStep1} hitSlop={10}>
-                  <Text style={{ color: muted, fontWeight: "900", fontSize: 18 }}>←</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              {step > 1 && (
+                <TouchableOpacity onPress={goBack} hitSlop={12}
+                  style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    backgroundColor: bg2, borderWidth: 1, borderColor: bdr,
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                  <Text style={{ color: muted, fontWeight: "900", fontSize: 14 }}>←</Text>
                 </TouchableOpacity>
               )}
-              <Text style={{ color: txt, fontWeight: "900", fontSize: 17 }}>
-                {step === 1 ? "🦊 New Tail" : "Who & When"}
-              </Text>
+              <View>
+                <Text style={{ color: txt, fontWeight: "900", fontSize: 16 }}>
+                  {step === 1 ? "🎬 Build Your Frame" : step === 2 ? "✍️ Write Your Hook" : "🚀 Launch"}
+                </Text>
+                <Text style={{ color: dim, fontSize: 10 }}>
+                  Step {step} of 3 — {STEP_LABELS[step - 1]}
+                </Text>
+              </View>
             </View>
+
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={{ flexDirection: "row", gap: 4 }}>
-                {[1, 2].map(s => (
+              {/* Step dots */}
+              <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
+                {[1, 2, 3].map(s => (
                   <View key={s} style={{
-                    width: s === step ? 16 : 6, height: 6, borderRadius: 3,
-                    backgroundColor: s === step ? cfg.color : bdr,
+                    height: 6, borderRadius: 3,
+                    width: s === step ? 18 : 6,
+                    backgroundColor: s <= step ? cfg.color : bdr,
                   }} />
                 ))}
               </View>
@@ -244,16 +526,134 @@ export default function ComposerModal({
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
             <ScrollView showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+              contentContainerStyle={{ padding: 18, paddingBottom: 52 }}>
 
-              {/* ══════ STEP 1 ══════ */}
+              {/* ══════════ STEP 1: FRAME ══════════ */}
               {step === 1 && (
+                <View style={{ gap: 22 }}>
+
+                  {/* Layout picker — BIG and visual */}
+                  <View>
+                    <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 4 }}>
+                      Choose Layout
+                    </Text>
+                    <Text style={{ color: dim, fontSize: 12, marginBottom: 14 }}>
+                      Your frame is the canvas — pick how you want to split it
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
+                      {LAYOUTS.map(lo => (
+                        <LayoutPreview
+                          key={lo.id}
+                          layout={lo}
+                          boxes={frameLayout === lo.id ? boxes : Array(lo.boxes).fill({})}
+                          isSelected={frameLayout === lo.id}
+                          color={cfg.color}
+                          onPress={() => selectLayout(lo.id)}
+                          size={80}
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Divider */}
+                  <View style={{ height: 1, backgroundColor: bdr }} />
+
+                  {/* Box editors */}
+                  <View>
+                    <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 4 }}>
+                      Fill Your Boxes
+                    </Text>
+                    <Text style={{ color: dim, fontSize: 12, marginBottom: 14 }}>
+                      Tap each box to add content · Set one as 🔒 Reveal to lock it
+                    </Text>
+                    {boxes.map((box, i) => (
+                      <BoxEditor
+                        key={i}
+                        box={box}
+                        index={i}
+                        isSelected={editingBox === i}
+                        color={box.type === "reveal" ? "#EF4444" : cfg.color}
+                        onSelect={() => setEditingBox(editingBox === i ? null : i)}
+                        onUpdate={(updates) => updateBox(i, updates)}
+                        bg2={bg2} bdr={bdr} txt={txt} dim={dim} muted={muted}
+                      />
+                    ))}
+                  </View>
+
+                  {/* Reveal hint */}
+                  {!hasReveal && (
+                    <View style={{
+                      padding: 12, borderRadius: 14,
+                      backgroundColor: "rgba(245,158,11,0.08)",
+                      borderWidth: 1, borderColor: "rgba(245,158,11,0.25)",
+                      flexDirection: "row", alignItems: "center", gap: 10,
+                    }}>
+                      <Text style={{ fontSize: 18 }}>💡</Text>
+                      <Text style={{ color: "#F59E0B", fontSize: 12, flex: 1, lineHeight: 18 }}>
+                        No locked box — this tail will be fully visible. Set a box to 🔒 Reveal to create a catch.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Next */}
+                  <TouchableOpacity onPress={goNext} style={{
+                    backgroundColor: cfg.color, borderRadius: 16,
+                    paddingVertical: 16, alignItems: "center",
+                    shadowColor: cfg.color, shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.4, shadowRadius: 12,
+                  }}>
+                    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 16 }}>
+                      Next → Write Hook
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ══════════ STEP 2: HOOK ══════════ */}
+              {step === 2 && (
                 <View style={{ gap: 20 }}>
+
+                  {/* Frame preview summary */}
+                  <View style={{
+                    flexDirection: "row", alignItems: "center", gap: 12,
+                    padding: 12, borderRadius: 14, backgroundColor: bg2,
+                    borderWidth: 1, borderColor: bdr,
+                  }}>
+                    <LayoutPreview
+                      layout={currentLayout}
+                      boxes={boxes}
+                      isSelected={false}
+                      color={cfg.color}
+                      onPress={() => {}}
+                      size={48}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: txt, fontWeight: "900", fontSize: 13 }}>
+                        {currentLayout.label} Frame · {boxes.length} box{boxes.length !== 1 ? "es" : ""}
+                      </Text>
+                      <Text style={{ color: dim, fontSize: 11, marginTop: 2 }}>
+                        {hasReveal ? `Box ${revealBoxIndex + 1} is locked 🔒` : "No locked boxes"}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => animateStep(1, -1)}
+                      style={{
+                        paddingHorizontal: 10, paddingVertical: 6,
+                        borderRadius: 8, backgroundColor: `${cfg.color}15`,
+                        borderWidth: 1, borderColor: `${cfg.color}30`,
+                      }}>
+                      <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "900" }}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Tail type */}
                   <View>
                     <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Type</Text>
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>
+                      Tail Type
+                    </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
                       contentContainerStyle={{ gap: 8 }}>
                       {TYPE_OPTIONS.map(opt => (
@@ -277,8 +677,8 @@ export default function ComposerModal({
                   {/* Hook text */}
                   <View>
                     <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                      Hook
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>
+                      Hook Message
                     </Text>
                     <TextInput
                       value={message} onChangeText={setMessage}
@@ -286,407 +686,203 @@ export default function ComposerModal({
                       placeholderTextColor={dim} multiline
                       style={{
                         backgroundColor: bg2, borderRadius: 16,
-                        borderWidth: 1, borderColor: message ? `${cfg.color}50` : bdr,
+                        borderWidth: 1.5, borderColor: message ? `${cfg.color}50` : bdr,
                         color: txt, padding: 14, fontSize: 15,
                         minHeight: 90, textAlignVertical: "top", lineHeight: 22,
                       }}
                     />
-                  </View>
-
-                  {/* Content type */}
-                  <View>
-                    <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-                      What's inside
+                    <Text style={{ color: dim, fontSize: 10, marginTop: 4, textAlign: "right" }}>
+                      {message.length}/280
                     </Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                      {CONTENT_TYPES.map(ct => (
-                        <TouchableOpacity key={ct.id}
-                          onPress={() => {
-                            if (ct.id === "video") { pickVideo(); return; }
-                            if (ct.id === "photo") { pickPhoto(); return; }
-                            if (ct.id === "voice") { Alert.alert("Coming soon", "Voice notes coming in next update."); return; }
-                            setContentType(ct.id);
-                          }}
-                          style={{
-                            flexDirection: "row", alignItems: "center", gap: 7,
-                            paddingVertical: 10, paddingHorizontal: 13, borderRadius: 13,
-                            borderWidth: 1.5,
-                            borderColor: contentType === ct.id ? cfg.color : bdr,
-                            backgroundColor: contentType === ct.id ? `${cfg.color}15` : bg2,
-                          }}>
-                          <Text style={{ fontSize: 16 }}>{ct.icon}</Text>
-                          <View>
-                            <Text style={{
-                              color: contentType === ct.id ? cfg.color : txt,
-                              fontWeight: "800", fontSize: 12,
-                            }}>{ct.label}</Text>
-                            <Text style={{ color: dim, fontSize: 9 }}>{ct.sub}</Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
                   </View>
 
-                  {/* Content-specific inputs */}
-
-                  {/* Video selected */}
-                  {contentType === "video" && videoUri && (
-                    <View style={{
-                      padding: 14, borderRadius: 14, backgroundColor: `${cfg.color}10`,
-                      borderWidth: 1.5, borderColor: `${cfg.color}40`,
-                      flexDirection: "row", alignItems: "center", gap: 10,
-                    }}>
-                      <Text style={{ fontSize: 28 }}>🎥</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 13 }}>Video ready</Text>
-                        <Text style={{ color: dim, fontSize: 11, marginTop: 2 }}>
-                          First 3 seconds plays in grid. Full video on catch.
+                  {/* Reveal content — only if locked box exists */}
+                  {hasReveal && (
+                    <View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                        <Text style={{ fontSize: 14 }}>🔒</Text>
+                        <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
+                          textTransform: "uppercase", letterSpacing: 1.5 }}>
+                          What's in the Reveal
                         </Text>
                       </View>
-                      <TouchableOpacity onPress={() => { setVideoUri(null); setContentType(null); }}>
-                        <Text style={{ color: dim, fontSize: 16 }}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {/* Photo selected */}
-                  {contentType === "photo" && photoUri && (
-                    <View style={{
-                      padding: 14, borderRadius: 14, backgroundColor: `${cfg.color}10`,
-                      borderWidth: 1.5, borderColor: `${cfg.color}40`,
-                      flexDirection: "row", alignItems: "center", gap: 10,
-                    }}>
-                      <Text style={{ fontSize: 28 }}>📸</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 13 }}>Photo ready</Text>
-                        <Text style={{ color: dim, fontSize: 11, marginTop: 2 }}>Shows in grid and on catch.</Text>
-                      </View>
-                      <TouchableOpacity onPress={() => { setPhotoUri(null); setContentType(null); }}>
-                        <Text style={{ color: dim, fontSize: 16 }}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {/* Coupon */}
-                  {contentType === "coupon" && (
-                    <View style={{ gap: 8 }}>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1 }}>Coupon Code</Text>
-                      <TextInput
-                        value={couponCode} onChangeText={setCouponCode}
-                        placeholder="SAVE20" placeholderTextColor={dim}
-                        autoCapitalize="characters"
-                        style={{
-                          backgroundColor: bg2, borderRadius: 14,
-                          borderWidth: 1, borderColor: `${cfg.color}40`,
-                          color: cfg.color, padding: 16, fontSize: 24,
-                          fontWeight: "900", letterSpacing: 4, textAlign: "center",
-                        }}
-                      />
-                      <Text style={{ color: dim, fontSize: 11, textAlign: "center" }}>
-                        Code reveals after catch
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Gift */}
-                  {contentType === "gift" && (
-                    <View style={{ gap: 12 }}>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1 }}>Gift Amount</Text>
-                      <View style={{
-                        flexDirection: "row", alignItems: "center",
-                        backgroundColor: bg2, borderRadius: 14,
-                        borderWidth: 1, borderColor: "#F43F8E40", paddingHorizontal: 14,
-                      }}>
-                        <Text style={{ color: "#F43F8E", fontWeight: "900", fontSize: 24 }}>$</Text>
-                        <TextInput
-                          value={giftAmount} onChangeText={setGiftAmount}
-                          placeholder="0.00" placeholderTextColor={dim}
-                          keyboardType="decimal-pad"
-                          style={{ flex: 1, color: txt, fontSize: 28, fontWeight: "900", padding: 14 }}
-                        />
-                      </View>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1 }}>Accept via</Text>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                        {PAYMENT_APPS.map(app => (
-                          <TouchableOpacity key={app.id}
-                            onPress={() => setGiftApps(prev =>
-                              prev.includes(app.id) ? prev.filter(a => a !== app.id) : [...prev, app.id])}
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
+                        {REVEAL_TYPES.map(rt => (
+                          <TouchableOpacity key={rt.id} onPress={() => {
+                            if (rt.id === "voice") { Alert.alert("Coming soon", "Voice notes coming next update."); return; }
+                            setRevealType(rt.id);
+                          }}
                             style={{
-                              flexDirection: "row", alignItems: "center", gap: 6,
-                              paddingVertical: 9, paddingHorizontal: 13, borderRadius: 12,
-                              borderWidth: 1.5,
-                              borderColor: giftApps.includes(app.id) ? "#F43F8E" : bdr,
-                              backgroundColor: giftApps.includes(app.id) ? "rgba(244,63,142,0.1)" : bg2,
+                              paddingVertical: 9, paddingHorizontal: 13, borderRadius: 13,
+                              borderWidth: 1.5, alignItems: "center", gap: 3,
+                              borderColor: revealType === rt.id ? "#EF4444" : bdr,
+                              backgroundColor: revealType === rt.id ? "rgba(239,68,68,0.12)" : bg2,
+                              opacity: rt.id === "voice" ? 0.5 : 1,
                             }}>
-                            <Text style={{ fontSize: 14 }}>{app.icon}</Text>
+                            <Text style={{ fontSize: 16 }}>{rt.icon}</Text>
                             <Text style={{
-                              color: giftApps.includes(app.id) ? "#F43F8E" : muted,
-                              fontWeight: "800", fontSize: 12,
-                            }}>{app.label}</Text>
+                              color: revealType === rt.id ? "#EF4444" : muted,
+                              fontWeight: "800", fontSize: 10,
+                            }}>{rt.label}</Text>
                           </TouchableOpacity>
                         ))}
-                      </View>
-                    </View>
-                  )}
+                      </ScrollView>
 
-                  {/* Link */}
-                  {contentType === "link" && (
-                    <View style={{ gap: 8 }}>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1 }}>URL</Text>
-                      <TextInput
-                        value={linkUrl} onChangeText={setLinkUrl}
-                        placeholder="https://..." placeholderTextColor={dim}
-                        autoCapitalize="none" keyboardType="url"
-                        style={{
-                          backgroundColor: bg2, borderRadius: 14,
-                          borderWidth: 1, borderColor: linkUrl ? `${cfg.color}50` : bdr,
-                          color: txt, padding: 14, fontSize: 14,
-                        }}
-                      />
-                    </View>
-                  )}
-
-                  {/* Message */}
-                  {contentType === "message" && (
-                    <View style={{ gap: 8 }}>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1 }}>Message</Text>
-                      <TextInput
-                        value={revealText} onChangeText={setRevealText}
-                        placeholder="Write something personal..."
-                        placeholderTextColor={dim} multiline
-                        style={{
-                          backgroundColor: bg2, borderRadius: 14,
-                          borderWidth: 1, borderColor: `${cfg.color}40`,
-                          color: txt, padding: 14, fontSize: 15,
-                          minHeight: 100, textAlignVertical: "top", lineHeight: 22,
-                        }}
-                      />
-                    </View>
-                  )}
-
-                  {/* ── Frame Layout ── */}
-                  <View>
-                    <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-                      Frame Layout
-                    </Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 8 }}>
-                      {LAYOUT_OPTIONS.map(lo => (
-                        <TouchableOpacity key={lo.id} onPress={() => {
-                          setFrameLayout(frameLayout === lo.id ? null : lo.id);
-                          if (frameLayout !== lo.id) {
-                            const defaultBoxes = [];
-                            for (let i = 0; i < lo.boxes; i++) {
-                              if (i === 0 && videoUri) defaultBoxes.push({ type: "video", uri: videoUri });
-                              else if (i === 0 && photoUri) defaultBoxes.push({ type: "image", uri: photoUri });
-                              else if (i === (lo.boxes - 1)) defaultBoxes.push({ type: "reveal" });
-                              else defaultBoxes.push({ type: "video" });
-                            }
-                            setBoxes(defaultBoxes);
-                            setRevealBox(lo.boxes - 1);
-                          }
-                        }}
+                      {/* Reveal content input */}
+                      {revealType === "message" && (
+                        <TextInput
+                          value={revealText} onChangeText={setRevealText}
+                          placeholder="What do they get when they catch it..."
+                          placeholderTextColor={dim} multiline
                           style={{
-                            paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14,
-                            borderWidth: 1.5, alignItems: "center", gap: 4, minWidth: 80,
-                            borderColor: frameLayout === lo.id ? cfg.color : bdr,
-                            backgroundColor: frameLayout === lo.id ? `${cfg.color}15` : bg2,
+                            backgroundColor: bg2, borderRadius: 14,
+                            borderWidth: 1, borderColor: "rgba(239,68,68,0.3)",
+                            color: txt, padding: 14, fontSize: 15,
+                            minHeight: 90, textAlignVertical: "top", lineHeight: 22,
+                          }}
+                        />
+                      )}
+
+                      {revealType === "coupon" && (
+                        <TextInput
+                          value={couponCode} onChangeText={setCouponCode}
+                          placeholder="SAVE20" placeholderTextColor={dim}
+                          autoCapitalize="characters"
+                          style={{
+                            backgroundColor: bg2, borderRadius: 14,
+                            borderWidth: 1, borderColor: "rgba(239,68,68,0.3)",
+                            color: "#EF4444", padding: 16, fontSize: 24,
+                            fontWeight: "900", letterSpacing: 4, textAlign: "center",
+                          }}
+                        />
+                      )}
+
+                      {revealType === "gift" && (
+                        <View style={{ gap: 12 }}>
+                          <View style={{
+                            flexDirection: "row", alignItems: "center",
+                            backgroundColor: bg2, borderRadius: 14,
+                            borderWidth: 1, borderColor: "rgba(244,63,142,0.3)", paddingHorizontal: 14,
                           }}>
-                          <Text style={{ fontSize: 22 }}>{lo.icon}</Text>
-                          <Text style={{
-                            color: frameLayout === lo.id ? cfg.color : muted,
-                            fontWeight: "900", fontSize: 10,
-                          }}>{lo.label}</Text>
-                          <Text style={{ color: dim, fontSize: 8 }}>{lo.desc}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* ── Box Editor (when layout selected) ── */}
-                  {frameLayout && boxes.length > 0 && (
-                    <View>
-                      <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-                        Tap a box to edit · 🔒 = reveal box
-                      </Text>
-                      <View style={{
-                        flexDirection: "row", gap: 6, justifyContent: "center",
-                        padding: 12, borderRadius: 16, backgroundColor: bg2,
-                        borderWidth: 1, borderColor: bdr,
-                      }}>
-                        {boxes.map((box, i) => (
-                          <TouchableOpacity key={i} onPress={() => setEditingBox(editingBox === i ? null : i)}
+                            <Text style={{ color: "#F43F8E", fontWeight: "900", fontSize: 24 }}>$</Text>
+                            <TextInput
+                              value={giftAmount} onChangeText={setGiftAmount}
+                              placeholder="0.00" placeholderTextColor={dim}
+                              keyboardType="decimal-pad"
+                              style={{ flex: 1, color: txt, fontSize: 28, fontWeight: "900", padding: 14 }}
+                            />
+                          </View>
+                          <TextInput
+                            value={revealText} onChangeText={setRevealText}
+                            placeholder="Personal message (optional)..."
+                            placeholderTextColor={dim} multiline
                             style={{
-                              flex: 1, height: frameLayout === "C" ? 120 : 80,
-                              borderRadius: 10, borderWidth: 2,
-                              borderColor: editingBox === i ? cfg.color : (box.type === "reveal" ? "#EF4444" : bdr),
-                              backgroundColor: box.type === "reveal" ? "rgba(239,68,68,0.15)" : "#0a0a0a",
-                              alignItems: "center", justifyContent: "center", gap: 4,
-                            }}>
-                            <Text style={{ fontSize: 20 }}>
-                              {box.type === "reveal" ? "🔒" : box.type === "video" ? "🎥" : box.type === "image" ? "📸" : box.type === "voice" ? "🎙" : box.type === "logo" ? "🏷" : box.type === "text" ? "💬" : box.type === "link" ? "🔗" : "📷"}
-                            </Text>
-                            <Text style={{ color: dim, fontSize: 7, fontWeight: "800", textTransform: "uppercase" }}>
-                              {box.type === "reveal" ? "LOCKED" : box.type}
-                            </Text>
-                            {box.uri && <Text style={{ color: "#22C55E", fontSize: 6 }}>✓ media</Text>}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-
-                      {/* Edit selected box */}
-                      {editingBox !== null && (
-                        <View style={{
-                          marginTop: 10, padding: 14, borderRadius: 14,
-                          backgroundColor: `${cfg.color}08`, borderWidth: 1, borderColor: `${cfg.color}30`,
-                          gap: 10,
-                        }}>
-                          <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 12 }}>
-                            Box {editingBox + 1} — choose type
-                          </Text>
-                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                            {BOX_TYPES.map(bt => (
-                              <TouchableOpacity key={bt.id} onPress={() => {
-                                const updated = [...boxes];
-                                if (bt.id === "reveal") {
-                                  updated.forEach((b, j) => { if (b.type === "reveal") updated[j] = { ...b, type: "video" }; });
-                                  setRevealBox(editingBox);
-                                }
-                                updated[editingBox] = { ...updated[editingBox], type: bt.id };
-                                setBoxes(updated);
-                              }}
+                              backgroundColor: bg2, borderRadius: 14,
+                              borderWidth: 1, borderColor: bdr,
+                              color: txt, padding: 14, fontSize: 14,
+                              minHeight: 70, textAlignVertical: "top",
+                            }}
+                          />
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                            {PAYMENT_APPS.map(app => (
+                              <TouchableOpacity key={app.id}
+                                onPress={() => setGiftApps(prev =>
+                                  prev.includes(app.id) ? prev.filter(a => a !== app.id) : [...prev, app.id])}
                                 style={{
-                                  flexDirection: "row", alignItems: "center", gap: 5,
-                                  paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10,
+                                  flexDirection: "row", alignItems: "center", gap: 6,
+                                  paddingVertical: 9, paddingHorizontal: 13, borderRadius: 12,
                                   borderWidth: 1.5,
-                                  borderColor: boxes[editingBox]?.type === bt.id ? cfg.color : bdr,
-                                  backgroundColor: boxes[editingBox]?.type === bt.id ? `${cfg.color}15` : bg2,
+                                  borderColor: giftApps.includes(app.id) ? "#F43F8E" : bdr,
+                                  backgroundColor: giftApps.includes(app.id) ? "rgba(244,63,142,0.1)" : bg2,
                                 }}>
-                                <Text style={{ fontSize: 14 }}>{bt.icon}</Text>
+                                <Text style={{ fontSize: 14 }}>{app.icon}</Text>
                                 <Text style={{
-                                  color: boxes[editingBox]?.type === bt.id ? cfg.color : muted,
-                                  fontWeight: "800", fontSize: 10,
-                                }}>{bt.label}</Text>
+                                  color: giftApps.includes(app.id) ? "#F43F8E" : muted,
+                                  fontWeight: "800", fontSize: 12,
+                                }}>{app.label}</Text>
                               </TouchableOpacity>
                             ))}
                           </View>
-
-                          {/* Add media to box */}
-                          {(boxes[editingBox]?.type === "video" || boxes[editingBox]?.type === "image" || boxes[editingBox]?.type === "reveal") && (
-                            <TouchableOpacity onPress={async () => {
-                              const isVid = boxes[editingBox]?.type === "video" || boxes[editingBox]?.type === "reveal";
-                              if (isVid) {
-                                const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                                if (!perm.granted) return;
-                                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos, quality: 0.7, videoMaxDuration: 60 });
-                                if (!result.canceled && result.assets?.[0]) {
-                                  const updated = [...boxes];
-                                  updated[editingBox] = { ...updated[editingBox], uri: result.assets[0].uri };
-                                  setBoxes(updated);
-                                  if (!videoUri) setVideoUri(result.assets[0].uri);
-                                }
-                              } else {
-                                const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                                if (!perm.granted) return;
-                                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-                                if (!result.canceled && result.assets?.[0]) {
-                                  const updated = [...boxes];
-                                  updated[editingBox] = { ...updated[editingBox], uri: result.assets[0].uri };
-                                  setBoxes(updated);
-                                }
-                              }
-                            }}
-                              style={{
-                                padding: 12, borderRadius: 12, backgroundColor: `${cfg.color}15`,
-                                borderWidth: 1, borderColor: `${cfg.color}30`,
-                                alignItems: "center",
-                              }}>
-                              <Text style={{ color: cfg.color, fontWeight: "800", fontSize: 12 }}>
-                                {boxes[editingBox]?.uri ? "✓ Change media" : "📎 Add media"}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-
-                          {/* Text input for text/logo/link boxes */}
-                          {boxes[editingBox]?.type === "text" && (
-                            <TextInput
-                              value={boxes[editingBox]?.text || ""} 
-                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], text: t }; setBoxes(u); }}
-                              placeholder="Box text..." placeholderTextColor={dim} multiline
-                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14, minHeight: 60 }}
-                            />
-                          )}
-                          {boxes[editingBox]?.type === "logo" && (
-                            <TextInput
-                              value={boxes[editingBox]?.text || ""}
-                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], text: t }; setBoxes(u); }}
-                              placeholder="Brand name..." placeholderTextColor={dim}
-                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14 }}
-                            />
-                          )}
-                          {boxes[editingBox]?.type === "link" && (
-                            <TextInput
-                              value={boxes[editingBox]?.url || ""}
-                              onChangeText={(t) => { const u = [...boxes]; u[editingBox] = { ...u[editingBox], url: t }; setBoxes(u); }}
-                              placeholder="https://..." placeholderTextColor={dim} autoCapitalize="none" keyboardType="url"
-                              style={{ backgroundColor: bg2, borderRadius: 12, borderWidth: 1, borderColor: bdr, color: txt, padding: 12, fontSize: 14 }}
-                            />
-                          )}
                         </View>
+                      )}
+
+                      {revealType === "link" && (
+                        <TextInput
+                          value={linkUrl} onChangeText={setLinkUrl}
+                          placeholder="https://..." placeholderTextColor={dim}
+                          autoCapitalize="none" keyboardType="url"
+                          style={{
+                            backgroundColor: bg2, borderRadius: 14,
+                            borderWidth: 1, borderColor: "rgba(239,68,68,0.3)",
+                            color: txt, padding: 14, fontSize: 14,
+                          }}
+                        />
                       )}
                     </View>
                   )}
 
                   {/* Next */}
-                  <TouchableOpacity onPress={goStep2} style={{
+                  <TouchableOpacity onPress={goNext} style={{
                     backgroundColor: cfg.color, borderRadius: 16,
                     paddingVertical: 16, alignItems: "center",
                     shadowColor: cfg.color, shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.4, shadowRadius: 12,
                   }}>
-                    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 16 }}>Next →</Text>
+                    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 16 }}>
+                      Next → Set Launch
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
 
-              {/* ══════ STEP 2 ══════ */}
-              {step === 2 && (
+              {/* ══════════ STEP 3: LAUNCH ══════════ */}
+              {step === 3 && (
                 <View style={{ gap: 20 }}>
 
-                  {/* Summary */}
+                  {/* Summary card */}
                   <View style={{
-                    flexDirection: "row", alignItems: "center", gap: 10,
-                    padding: 14, borderRadius: 14,
-                    backgroundColor: `${cfg.color}15`, borderWidth: 1, borderColor: `${cfg.color}40`,
+                    padding: 14, borderRadius: 16,
+                    backgroundColor: `${cfg.color}10`,
+                    borderWidth: 1.5, borderColor: `${cfg.color}30`,
+                    gap: 8,
                   }}>
-                    <Text style={{ fontSize: 20 }}>{cfg.icon}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 13 }}>
-                        {cfg.label} · {contentType ? CONTENT_TYPES.find(c=>c.id===contentType)?.label : "No content"}
-                      </Text>
-                      <Text style={{ color: dim, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-                        {message}
-                      </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <Text style={{ fontSize: 20 }}>{cfg.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: cfg.color, fontWeight: "900", fontSize: 14 }}>
+                          {cfg.label} · {currentLayout.label} Frame
+                        </Text>
+                        <Text style={{ color: dim, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                          {message}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      {boxes.map((b, i) => (
+                        <View key={i} style={{
+                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+                          backgroundColor: b.type === "reveal" ? "rgba(239,68,68,0.15)" : bg2,
+                          borderWidth: 1,
+                          borderColor: b.type === "reveal" ? "#EF4444" : bdr,
+                        }}>
+                          <Text style={{ fontSize: 10 }}>
+                            {b.type === "reveal" ? "🔒" : b.type === "video" ? "🎥" : b.type === "image" ? "📸" : b.type === "text" ? "💬" : b.type === "link" ? "🔗" : "📦"}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
                   </View>
 
                   {/* Audience */}
                   <View>
                     <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-                      Who sees it
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>
+                      Who Sees It
                     </Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       {[
-                        { id: "public",  icon: "🌐", label: "Everyone"        },
+                        { id: "public",  icon: "🌐", label: "Everyone" },
                         { id: "private", icon: "🔒", label: "Specific people" },
                       ].map(opt => (
                         <TouchableOpacity key={opt.id} onPress={() => setMode(opt.id)}
@@ -722,8 +918,8 @@ export default function ComposerModal({
                   {/* Expiry */}
                   <View>
                     <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-                      Expires in
+                      textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>
+                      Expires In
                     </Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <TextInput
@@ -736,7 +932,7 @@ export default function ComposerModal({
                           fontWeight: "900", textAlign: "center",
                         }}
                       />
-                      {["m","h","d"].map(u => (
+                      {["m", "h", "d"].map(u => (
                         <TouchableOpacity key={u} onPress={() => setExpiryUnit(u)}
                           style={{
                             paddingHorizontal: 18, borderRadius: 14, borderWidth: 1.5,
@@ -757,8 +953,8 @@ export default function ComposerModal({
                   {tailType === "DROP" && (
                     <View>
                       <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
-                        textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                        Catch limit
+                        textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>
+                        Catch Limit
                       </Text>
                       <TextInput
                         value={catchLimit} onChangeText={setCatchLimit}
@@ -790,7 +986,7 @@ export default function ComposerModal({
                       <View>
                         <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
                           textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                          💰 Affiliate link
+                          💰 Affiliate Link
                         </Text>
                         <TextInput
                           value={monetizedUrl} onChangeText={setMonetizedUrl}
@@ -803,11 +999,11 @@ export default function ComposerModal({
                             color: txt, padding: 14, fontSize: 13,
                           }}
                         />
-                        {monetizedUrl ? (
+                        {monetizedUrl && (
                           <Text style={{ color: "#22C55E", fontSize: 11, fontWeight: "800", marginTop: 4 }}>
                             ✓ Earns on every catch
                           </Text>
-                        ) : null}
+                        )}
                       </View>
                       <View>
                         <Text style={{ color: muted, fontWeight: "900", fontSize: 11,
@@ -833,13 +1029,13 @@ export default function ComposerModal({
                     </View>
                   )}
 
-                  {/* Send */}
+                  {/* SEND */}
                   <TouchableOpacity onPress={handleSend} disabled={isSending}
                     style={{
                       backgroundColor: isSending ? bg2 : cfg.color,
                       borderRadius: 18, paddingVertical: 18, alignItems: "center",
                       shadowColor: cfg.color, shadowOffset: { width: 0, height: 6 },
-                      shadowOpacity: isSending ? 0 : 0.5, shadowRadius: 16, marginTop: 4,
+                      shadowOpacity: isSending ? 0 : 0.55, shadowRadius: 18, marginTop: 4,
                     }}>
                     <Text style={{ color: "#fff", fontWeight: "900", fontSize: 17 }}>
                       {isSending ? "Sending..." : `${cfg.icon} Send Tail`}
@@ -847,6 +1043,7 @@ export default function ComposerModal({
                   </TouchableOpacity>
                 </View>
               )}
+
             </ScrollView>
           </Animated.View>
         </View>

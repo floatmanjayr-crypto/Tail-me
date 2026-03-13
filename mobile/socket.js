@@ -1,9 +1,9 @@
 import { io } from "socket.io-client";
 import { Platform } from "react-native";
 
-const USE_TUNNEL = true; // 👈 flip this ON/OFF when needed
+const USE_TUNNEL = true;
 
-const NGROK_URL = "https://2091-74-249-85-202.ngrok-free.app";
+const NGROK_URL = "https://3fc1-74-249-85-196.ngrok-free.app";
 
 const LOCAL_URL =
   Platform.OS === "android"

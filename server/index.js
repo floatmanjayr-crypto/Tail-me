@@ -36,7 +36,6 @@ let Expo;
 try {
   Expo = require("expo-server-sdk").Expo;
 } catch {
-  console.log("Seeded affiliate tail:", seed.id, "from @" + seed.from);
   Expo = null;
 }
 
@@ -195,9 +194,10 @@ app.get("/scrape", async (req, res) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: "*" },
-  transports: ["websocket", "polling"],
+  transports: ["polling"],
+  allowUpgrades: false,
   pingInterval: 25000,
-  pingTimeout:  60000,
+  pingTimeout: 60000,
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -866,35 +866,33 @@ io.on("connection", (socket) => {
       console.log("Private tail sent:", tail.id);
     }
 
-    // Async: scrape URL and update meta
-    if (tail.url) {
-      const meta = await scrapeUrl(tail.url);
-      if (meta) {
-        tail.meta  = meta;
-        tail.title = tail.title === "Tail" ? (meta.title || tail.title) : tail.title;
-        // Push updated meta to all
-        io.emit("tail-updated", { tailId, patch: { meta, title: tail.title } });
-      }
-    }
+    // Async tasks - fire and forget, can't crash connection
+    setTimeout(async () => {
+      try {
+        if (tail.url) {
+          const meta = await scrapeUrl(tail.url);
+          if (meta) {
+            tail.meta = meta;
+            tail.title = tail.title === "Tail" ? (meta.title || tail.title) : tail.title;
+            io.emit("tail-updated", { tailId, patch: { meta, title: tail.title } });
+          }
+        }
+      } catch (e) { console.log("Scrape error:", e.message); }
 
-    // Async: geo push notifications
-    if (geo) {
-      const count = await notifyNearbyUsers(tail);
-      if (count > 0) console.log("Geo push sent to", count, "users for tail:", tail.id);
-    }
+      try {
+        if (geo) {
+          const count = await notifyNearbyUsers(tail);
+          if (count > 0) console.log("Geo push:", count, "users");
+        }
+      } catch (e) {}
 
-    // Private: push to offline recipient
-    if (visibility === "private") {
-      const tokens = recipients
-        .map(r => users.get(r)?.pushToken)
-        .filter(Boolean);
-      await sendPush(
-        tokens,
-        `📬 New tail from @${from}`,
-        tail.message || "You received a private tail!",
-        { tailId, type: "private" }
-      );
-    }
+      try {
+        if (visibility === "private") {
+          const tokens = recipients.map(r => users.get(r)?.pushToken).filter(Boolean);
+          if (tokens.length) await sendPush(tokens, "New tail from @" + from, tail.message || "You got a tail!", { tailId });
+        }
+      } catch (e) {}
+    }, 100);
   });
 
   // ── CATCH TAIL ────────────────────────────────────────
