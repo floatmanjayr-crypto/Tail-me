@@ -82,6 +82,7 @@ const LAYOUTS = [
 
 const BOX_CONTENT_OPTIONS = [
   { id: "video",  icon: "🎥", label: "Video"  },
+  { id: "selfie", icon: "🤳", label: "Selfie" },
   { id: "image",  icon: "📸", label: "Photo"  },
   { id: "reveal", icon: "🔒", label: "Reveal" },
   { id: "voice",  icon: "🎙", label: "Voice"  },
