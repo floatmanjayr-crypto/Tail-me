@@ -663,6 +663,10 @@ export default function TailHome({
   onShareTail,
   onOpenProfile,
   onOpenSearch,
+  isPro = false,
+  earnings = 0,
+  onOpenEarnings,
+  onOpenPro,
 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTail, setExpandedTail] = useState(null);
@@ -983,19 +987,13 @@ export default function TailHome({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* ── Tab switcher ── */}
-      <View style={{ flexDirection: "row", backgroundColor: "#000", borderBottomWidth: 1, borderBottomColor: "#111" }}>
-        <TouchableOpacity
-          onPress={() => setActiveTab("grid")}
-          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: activeTab === "grid" ? "#7C3AED" : "transparent" }}
-        >
-          <Text style={{ color: activeTab === "grid" ? "#7C3AED" : "#444", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>⬡ GRID</Text>
+      {/* ── Tab switcher dots ── */}
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 10, backgroundColor: "#000", borderBottomWidth: 1, borderBottomColor: "#111" }}>
+        <TouchableOpacity onPress={() => setActiveTab("feed")} style={{ padding: 4 }}>
+          <View style={{ width: activeTab === "feed" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "feed" ? "#F59E0B" : "#1E293B" }} />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab("feed")}
-          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: activeTab === "feed" ? "#F59E0B" : "transparent" }}
-        >
-          <Text style={{ color: activeTab === "feed" ? "#F59E0B" : "#444", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>▣ FEED</Text>
+        <TouchableOpacity onPress={() => setActiveTab("grid")} style={{ padding: 4 }}>
+          <View style={{ width: activeTab === "grid" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "grid" ? "#7C3AED" : "#1E293B" }} />
         </TouchableOpacity>
       </View>
 
@@ -1005,6 +1003,15 @@ export default function TailHome({
           tails={allTails}
           onCatch={handleTap}
           colors={C}
+          categoryFilterOptions={categoryFilterOptions}
+          selectedCategory={selectedCategory}
+          onCategoryChange={onCategoryChange}
+          me={me}
+          isPro={isPro}
+          streak={streak}
+          earnings={earnings}
+          onOpenPrivate={onOpenPrivate}
+          inboxCount={inboxCount}
         />
       )}
 

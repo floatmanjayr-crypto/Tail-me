@@ -27,6 +27,7 @@ import {
   TouchableWithoutFeedback,
   View,
   useColorScheme,
+  Linking,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from "expo-image-picker";
@@ -38,6 +39,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CatchTailModal from "./CatchTailModal";
 import TailHome from "./TailHome";
 import OnboardingScreen from "./OnboardingScreen";
+import ProfileSetupScreen from "./ProfileSetupScreen";
 import ComposerModal from "./ComposerModal";
 import TailCard from "./TailCard";
 import EarningsScreen from "./EarningsScreen";
@@ -47,6 +49,7 @@ import CatchPassport from "./CatchPassport";
 import ChainTailModal from "./ChainTailModal";
 import { socket, SOCKET_URL } from "./socket";
 import ProfileScreen from "./ProfileScreen";
+import SplitFrameCard from "./SplitFrameCard";
 import SearchScreen from "./SearchScreen";
 import useAnalytics from "./useAnalytics";
 
@@ -252,10 +255,16 @@ const CategoryFilterBar = ({ selected, userInterests = [], onChange, colors: C }
 // APP
 // ═════════════════════════════════════════════════════════
 export default function App() {
+  const [expandedTail, setExpandedTail] = useState(null);
+  // DEV ONLY - remove before release
+  // AsyncStorage.clear();
   const systemScheme = useColorScheme();
   const [themePref, setThemePref] = useState("system");
   const [screen, setScreen] = useState("login");
   const [hasOnboarded, setHasOnboarded] = useState(false);
+  // DEV: uncomment to reset onboarding
+  // React.useEffect(() => { AsyncStorage.clear(); }, []);
+  const [hasProfile, setHasProfile] = useState(false);
   const [username, setUsername] = useState("");
   const [me, setMe] = useState(null);
 
@@ -359,6 +368,8 @@ export default function App() {
       try {
         const onboarded = await AsyncStorage.getItem("tailme_has_onboarded");
         if (onboarded === "true") setHasOnboarded(true);
+        const prof = await AsyncStorage.getItem("tailme_has_profile");
+        if (prof === "true") setHasProfile(true);
         const v = await AsyncStorage.getItem("tailme_theme_pref");
         const s = await AsyncStorage.getItem("tailme_streak");
         const pro = await AsyncStorage.getItem("tailme_is_pro");
@@ -405,6 +416,36 @@ export default function App() {
       AsyncStorage.setItem("tailme_interests", JSON.stringify(me.interests)).catch(() => {});
     }
   }, [me?.interests]);
+
+
+  // ── Deep link handler ────────────────────────────────
+  useEffect(() => {
+    // Handle app opened from a tailme:// link
+    const handleUrl = ({ url }) => {
+      console.log("🔗 Deep link:", url);
+      // tailme://catch/TAIL_ID
+      const catchMatch = url.match(/tailme:\/\/catch\/([^?]+)/);
+      if (catchMatch) {
+        const tailId = catchMatch[1];
+        socket.emit("tail-preview", { tailId });
+        socket.once("tail-preview-data", ({ tail }) => {
+          if (tail) setExpandedTail(tail);
+        });
+        return;
+      }
+      // tailme://open — just open the app
+    };
+
+    // App already open — listen for incoming links
+    const sub = Linking.addEventListener("url", handleUrl);
+
+    // App opened from cold start via link
+    Linking.getInitialURL().then(url => {
+      if (url) handleUrl({ url });
+    });
+
+    return () => sub.remove();
+  }, []);
 
   // ── Location (paused — geo features disabled) ───────
   // useEffect(() => {
@@ -654,8 +695,14 @@ export default function App() {
       if (res?.ok) {
         setMe({ username: u, interests: [] });
         const onboarded = await AsyncStorage.getItem("tailme_has_onboarded");
+        const savedUsername = await AsyncStorage.getItem('tailme_username');
         if (onboarded === "true") {
-          setScreen("hub");
+          if (savedUsername) {
+            const prof = await AsyncStorage.getItem('tailme_has_profile');
+            setScreen("hub");
+          } else {
+            setScreen("profile-setup");
+          }
         } else {
           setScreen("onboarding");
         }
@@ -826,7 +873,7 @@ export default function App() {
     }
     await AsyncStorage.setItem("tailme_has_onboarded", "true");
     setHasOnboarded(true);
-    setScreen("hub");
+    setScreen("profile-setup");
     socket.emit("get-smart-feed", { interests: interests || [] });
     socket.emit("get-public-feed");
   }, []);
@@ -3056,6 +3103,26 @@ export default function App() {
         />
       )}
 
+      {screen === "profile-setup" && me && (
+        <ProfileSetupScreen
+          onComplete={async (profile) => {
+            const username = profile?.username || me?.username || "";
+            const photoUri = profile?.photoUri || null;
+            const email = profile?.email || null;
+            const updated = { ...me, username, photoUri, email };
+            setMe(updated);
+            if (username) {
+              socket.emit("register", { username });
+              await AsyncStorage.setItem("tailme_username", username);
+            }
+            if (email) await AsyncStorage.setItem("tailme_email", email);
+            await AsyncStorage.setItem("tailme_has_profile", "true");
+            setHasProfile(true);
+            setScreen("hub");
+          }}
+          colors={C}
+        />
+      )}
       {screen === "hub" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
           <TailHome
@@ -4150,6 +4217,29 @@ export default function App() {
             })}
           </View>
         </>
+      )}
+    {/* Deep link tail reveal */}
+      {expandedTail && (
+        <View style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.85)",
+          justifyContent: "center", zIndex: 999,
+        }}>
+          <TouchableOpacity
+            style={{ position: "absolute", top: 52, right: 20, zIndex: 1000,
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.15)",
+              alignItems: "center", justifyContent: "center" }}
+            onPress={() => setExpandedTail(null)}>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}>✕</Text>
+          </TouchableOpacity>
+          <SplitFrameCard
+            tail={expandedTail}
+            onClose={() => setExpandedTail(null)}
+            onCatch={(tail) => { setExpandedTail(null); }}
+            isVisible={true}
+          />
+        </View>
       )}
     </SafeAreaView>
   );

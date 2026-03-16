@@ -6,6 +6,7 @@
 // ============================================================
 import React, { useState, useRef, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
+import { Audio } from "expo-av";
 import {
   View, Text, Modal, TouchableOpacity, TextInput,
   ScrollView, Animated, Pressable,
@@ -27,7 +28,7 @@ const REVEAL_TYPES = [
   { id: "coupon",  icon: "🎟", label: "Coupon",   sub: "discount code"   },
   { id: "gift",    icon: "💰", label: "Gift",     sub: "send money"      },
   { id: "link",    icon: "🔗", label: "Link",     sub: "any URL"         },
-  { id: "voice",   icon: "🎙", label: "Voice",    sub: "coming soon"     },
+  { id: "voice",   icon: "🎙", label: "Voice",    sub: "tap to record"   },
 ];
 
 const PAYMENT_APPS = [
@@ -299,12 +300,33 @@ const BoxEditor = ({ box, index, isSelected, color, onSelect, onUpdate, bg2, bdr
           )}
 
           {type === "voice" && (
-            <View style={{
-              padding: 12, borderRadius: 12,
-              backgroundColor: "rgba(124,58,237,0.1)",
-              alignItems: "center",
-            }}>
-              <Text style={{ color: muted, fontSize: 12 }}>🎙 Voice notes coming soon</Text>
+            <View style={{ gap: 10 }}>
+              {recordingUri ? (
+                <View style={{ padding: 14, borderRadius: 12, backgroundColor: "rgba(34,197,94,0.1)", borderWidth: 1, borderColor: "rgba(34,197,94,0.3)", alignItems: "center", gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>🎙</Text>
+                  <Text style={{ color: "#22C55E", fontWeight: "900", fontSize: 13 }}>Voice note recorded</Text>
+                  <Text style={{ color: dim, fontSize: 11 }}>{recordingDuration}s</Text>
+                  <TouchableOpacity onPress={() => { setRecordingUri(null); setRecordingDuration(0); }}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: "rgba(239,68,68,0.1)", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)" }}>
+                    <Text style={{ color: "#EF4444", fontSize: 11, fontWeight: "800" }}>✕ Re-record</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={isRecording ? stopRecording : startRecording}
+                  style={{
+                    padding: 16, borderRadius: 14, alignItems: "center", gap: 8,
+                    backgroundColor: isRecording ? "rgba(239,68,68,0.15)" : "rgba(124,58,237,0.12)",
+                    borderWidth: 1.5,
+                    borderColor: isRecording ? "#EF4444" : color,
+                  }}>
+                  <Text style={{ fontSize: 36 }}>{isRecording ? "⏹" : "🎙"}</Text>
+                  <Text style={{ color: isRecording ? "#EF4444" : color, fontWeight: "900", fontSize: 14 }}>
+                    {isRecording ? `Recording... ${recordingDuration}s` : "Tap to Record"}
+                  </Text>
+                  {isRecording && <Text style={{ color: dim, fontSize: 11 }}>Tap again to stop</Text>}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -344,6 +366,38 @@ export default function ComposerModal({
   const [catchLimit, setCatchLimit] = useState("");
   const [categories, setCategories] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Voice recording state
+  const [recording, setRecording] = useState(null);
+  const [recordingUri, setRecordingUri] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingTimer = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) { Alert.alert("Permission needed", "Microphone access is required."); return; }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(rec);
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingTimer.current = setInterval(() => setRecordingDuration(d => d + 1), 1000);
+    } catch (e) { Alert.alert("Error", "Could not start recording."); }
+  };
+
+  const stopRecording = async () => {
+    try {
+      clearInterval(recordingTimer.current);
+      setIsRecording(false);
+      if (!recording) return;
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecordingUri(uri);
+      setRecording(null);
+    } catch (e) { console.error(e); }
+  };
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cfg = TYPE_OPTIONS.find(t => t.id === tailType) || TYPE_OPTIONS[0];
@@ -423,7 +477,7 @@ export default function ComposerModal({
       case "coupon":  return { kind: "coupon",  code: couponCode };
       case "gift":    return { kind: "gift",    amount: parseFloat(giftAmount), paymentApps: giftApps, message: revealText };
       case "link":    return { kind: "url",     url: linkUrl };
-      case "voice":   return { kind: "voice" };
+      case "voice":   return { kind: "voice", uri: recordingUri };
       case "message": 
       default:        return { kind: "message", text: revealText };
     }
@@ -711,7 +765,6 @@ export default function ComposerModal({
                         contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
                         {REVEAL_TYPES.map(rt => (
                           <TouchableOpacity key={rt.id} onPress={() => {
-                            if (rt.id === "voice") { Alert.alert("Coming soon", "Voice notes coming next update."); return; }
                             setRevealType(rt.id);
                           }}
                             style={{
@@ -719,7 +772,7 @@ export default function ComposerModal({
                               borderWidth: 1.5, alignItems: "center", gap: 3,
                               borderColor: revealType === rt.id ? "#EF4444" : bdr,
                               backgroundColor: revealType === rt.id ? "rgba(239,68,68,0.12)" : bg2,
-                              opacity: rt.id === "voice" ? 0.5 : 1,
+                              opacity: 1,
                             }}>
                             <Text style={{ fontSize: 16 }}>{rt.icon}</Text>
                             <Text style={{

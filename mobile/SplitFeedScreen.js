@@ -2,7 +2,7 @@
 // SplitFeedScreen.js — Vertical scroll feed
 // ============================================================
 import React, { useCallback, useRef, useState } from "react";
-import { View, FlatList, Dimensions, StyleSheet, Text } from "react-native";
+import { View, FlatList, Dimensions, StyleSheet, Text, ScrollView, TouchableOpacity } from "react-native";
 import SplitFrameCard from "./SplitFrameCard";
 
 const { width: SW } = Dimensions.get("window");
@@ -16,7 +16,7 @@ const DEMO_SPLIT_TAILS = [
   { id: "sf_6", from: "zara.archive__", tailType: "DROP", message: "NEW DROP 🖤 FIRST 10 GET THE CODE", frameLayout: "C", previewUrl: "https://videos.pexels.com/video-files/3045163/3045163-sd_640_360_25fps.mp4", box2Url: null, revealBox: 0, catchLimit: 10, catchCount: 3, timestamp: Date.now() - 1800000 },
 ];
 
-export default function SplitFeedScreen({ tails = [], onCatch, colors: C }) {
+export default function SplitFeedScreen({ tails = [], onCatch, colors: C, categoryFilterOptions = [], selectedCategory = "foryou", onCategoryChange, me, isPro = false, streak = 0, earnings = 0, onOpenPrivate, inboxCount = 0 }) {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const feedTails = [...DEMO_SPLIT_TAILS, ...tails.filter(t => t.frameLayout)];
 
@@ -42,6 +42,31 @@ export default function SplitFeedScreen({ tails = [], onCatch, colors: C }) {
 
   return (
     <View style={[styles.container, { backgroundColor: C?.bg || "#000" }]}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 24 }}>🦊</Text>
+          <Text style={{ color: C?.text || "#fff", fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
+          {isPro && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}><Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text></View>}
+        </View>
+        <TouchableOpacity onPress={onOpenPrivate} style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C?.border || "#1E293B", alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
+        </TouchableOpacity>
+      </View>
+      {/* Category chips */}
+      {categoryFilterOptions.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B", maxHeight: 46 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}>
+          {categoryFilterOptions.map(opt => {
+            const isSelected = selectedCategory === opt.id;
+            return (
+              <TouchableOpacity key={opt.id} onPress={() => onCategoryChange?.(opt.id)} style={{ minWidth: 32, height: 32, paddingHorizontal: opt.labelFull ? 10 : 0, borderRadius: 16, borderWidth: 1, borderColor: isSelected ? "#7C3AED" : C?.border || "#1E293B", backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 3 }}>
+                <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
+                {opt.labelFull && <Text style={{ color: isSelected ? C?.text || "#fff" : C?.muted || "#94A3B8", fontWeight: "800", fontSize: 11 }}>{opt.labelFull}</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
       <FlatList
         data={feedTails}
         renderItem={renderItem}
