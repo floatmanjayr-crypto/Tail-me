@@ -16,7 +16,7 @@ const DEMO_SPLIT_TAILS = [
   { id: "sf_6", from: "zara.archive__", tailType: "DROP", message: "NEW DROP 🖤 FIRST 10 GET THE CODE", frameLayout: "C", previewUrl: "https://videos.pexels.com/video-files/3045163/3045163-sd_640_360_25fps.mp4", box2Url: null, revealBox: 0, catchLimit: 10, catchCount: 3, timestamp: Date.now() - 1800000 },
 ];
 
-export default function SplitFeedScreen({ tails = [], onCatch, colors: C, categoryFilterOptions = [], selectedCategory = "foryou", onCategoryChange, me, isPro = false, streak = 0, earnings = 0, onOpenPrivate, inboxCount = 0 }) {
+export default function SplitFeedScreen({ tails = [], onCatch, onShare, colors: C, categoryFilterOptions = [], selectedCategory = "foryou", onCategoryChange, me, isPro = false, streak = 0, earnings = 0, onOpenPrivate, inboxCount = 0 }) {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const feedTails = [...DEMO_SPLIT_TAILS, ...tails.filter(t => t.frameLayout)];
 
@@ -27,7 +27,7 @@ export default function SplitFeedScreen({ tails = [], onCatch, colors: C, catego
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
 
   const renderItem = useCallback(({ item, index }) => (
-    <SplitFrameCard tail={item} onCatch={onCatch} isVisible={index === visibleIndex} />
+    <SplitFrameCard tail={item} onCatch={onCatch} onShare={onShare} isVisible={index === visibleIndex} />
   ), [visibleIndex, onCatch]);
 
   if (feedTails.length === 0) {

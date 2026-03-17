@@ -478,7 +478,7 @@ function buildBoxes(tail) {
 }
 
 // ── MAIN EXPORT ──────────────────────────────────────────
-export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = true }) {
+export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = true, onShare }) {
   const [caught, setCaught] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -537,6 +537,12 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
             <TouchableOpacity onPress={handleLike} style={{ alignItems: "center", gap: 1 }}>
               <Text style={{ fontSize: 18 }}>{liked ? "❤️" : "🤍"}</Text>
               <Text style={{ color: liked ? "#EF4444" : "#475569", fontSize: 9, fontWeight: "800" }}>{likeTotal}</Text>
+            </TouchableOpacity>
+
+            {/* Share */}
+            <TouchableOpacity onPress={() => onShare?.(tail)} style={{ alignItems: "center", gap: 1 }}>
+              <Text style={{ fontSize: 18 }}>↗️</Text>
+              <Text style={{ color: "#475569", fontSize: 9, fontWeight: "800" }}>Share</Text>
             </TouchableOpacity>
 
             {/* Comment */}

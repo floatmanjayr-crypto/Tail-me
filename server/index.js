@@ -1003,8 +1003,8 @@ io.on("connection", (socket) => {
       if (sender.pushToken && !sender.socketId) {
         sendPush(
           [sender.pushToken],
-          `🎯 @${username} caught your tail!`,
-          tail.title || "Your drop got a catch",
+          `🎯 @${username} caught your tail! +1 catch`,
+          tail.message ? tail.message.slice(0,60) : "Your drop got a catch 🔥",
           { tailId, type: "caught" }
         );
       }

@@ -1012,6 +1012,7 @@ export default function TailHome({
           earnings={earnings}
           onOpenPrivate={onOpenPrivate}
           inboxCount={inboxCount}
+          onShare={onShareTail}
         />
       )}
 
