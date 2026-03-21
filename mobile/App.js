@@ -49,6 +49,7 @@ import CatchPassport from "./CatchPassport";
 import ChainTailModal from "./ChainTailModal";
 import { socket, SOCKET_URL } from "./socket";
 import ProfileScreen from "./ProfileScreen";
+import GhostScreen from "./GhostScreen";
 import SplitFrameCard from "./SplitFrameCard";
 import SearchScreen from "./SearchScreen";
 import useAnalytics from "./useAnalytics";
@@ -256,6 +257,7 @@ const CategoryFilterBar = ({ selected, userInterests = [], onChange, colors: C }
 // ═════════════════════════════════════════════════════════
 export default function App() {
   const [expandedTail, setExpandedTail] = useState(null);
+  const [ghostTails, setGhostTails] = useState([]);
   // DEV ONLY - remove before release
   // AsyncStorage.clear();
   const systemScheme = useColorScheme();
@@ -3319,6 +3321,33 @@ export default function App() {
       {/* GEO — paused */}
 
       {/* PASSPORT */}
+      {screen === "profile" && me && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <ProfileScreen
+            me={me}
+            catches={passportCatches}
+            myTails={allTails.filter(t => t.from === me.username)}
+            following={following}
+            followers={[]}
+            streak={streak}
+            onBack={() => setScreen("hub")}
+            onOpenPassport={() => setScreen("passport")}
+            colors={C}
+          />
+        </View>
+      )}
+      {screen === "ghost" && me && (
+        <View style={{ flex: 1, paddingBottom: 92 }}>
+          <GhostScreen
+            me={me}
+            ghostTails={ghostTails}
+            onSendGhost={() => setComposerOpen(true)}
+            onSeenGhost={(id) => setGhostTails(prev => prev.map(g => g.id === id ? {...g, seen: true} : g))}
+            onBack={() => setScreen("hub")}
+            colors={C}
+          />
+        </View>
+      )}
       {screen === "passport" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
           <CatchPassport
@@ -4147,9 +4176,9 @@ export default function App() {
           >
             {[
               { key: "hub",      label: "Home",     icon: "🏠" },
-              { key: "private",  label: "Inbox",    icon: "📬" },
-              { key: "passport", label: "Passport", icon: "🛂" },
-              { key: "settings", label: "Settings", icon: "⚙️" },
+              { key: "search",   label: "Search",   icon: "🔍" },
+              { key: "ghost",    label: "Ghost",    icon: "👻" },
+              { key: "profile",  label: "Profile",  icon: "👤" },
             ].map((it) => {
               const active = screen === it.key;
               const badge =
