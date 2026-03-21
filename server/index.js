@@ -192,12 +192,24 @@ app.get("/scrape", async (req, res) => {
 
 // ── Socket.io ──────────────────────────────────────────────
 const httpServer = createServer(app);
+
+// Keep-alive for App Runner
+httpServer.keepAliveTimeout = 120000;
+httpServer.headersTimeout = 125000;
+
 const io = new Server(httpServer, {
-  cors: { origin: "*" },
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: false,
+  },
   transports: ["polling"],
   allowUpgrades: false,
-  pingInterval: 25000,
-  pingTimeout: 60000,
+  pingInterval: 10000,
+  pingTimeout: 30000,
+  httpCompression: false,
+  maxHttpBufferSize: 1e6,
+  cookie: false,
 });
 
 // ═══════════════════════════════════════════════════════════

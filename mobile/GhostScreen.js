@@ -127,8 +127,7 @@ export default function GhostScreen({ me, ghostTails = [], onSendGhost, onSeenGh
             <Text style={{ fontSize: 64, opacity: 0.3 }}>👻</Text>
             <Text style={{ color: muted, fontSize: 18, fontWeight: "900" }}>No ghost tails</Text>
             <Text style={{ color: dim, fontSize: 14, textAlign: "center", lineHeight: 22, maxWidth: 260 }}>
-              Ghost tails disappear forever after viewing.{"
-"}Send one to someone special.
+              Ghost tails disappear forever after viewing. Send one to someone special.
             </Text>
             <TouchableOpacity onPress={() => onSendGhost?.()} style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: "rgba(124,58,237,0.15)", borderWidth: 1, borderColor: "rgba(124,58,237,0.4)", marginTop: 8 }}>
               <Text style={{ color: "#7C3AED", fontWeight: "900", fontSize: 15 }}>👻 Send a Ghost Tail</Text>

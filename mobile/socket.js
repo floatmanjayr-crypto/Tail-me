@@ -1,9 +1,9 @@
 import { io } from "socket.io-client";
 import { Platform } from "react-native";
 
-const USE_TUNNEL = true;
+const USE_AWS_STAGING = true;
 
-const NGROK_URL = "https://a820-135-237-130-235.ngrok-free.app";
+const AWS_STAGING_URL = "https://gnpwymhxhj.us-east-1.awsapprunner.com";
 
 const LOCAL_URL =
   Platform.OS === "android"
@@ -13,15 +13,31 @@ const LOCAL_URL =
 const PROD_URL = "https://api.tailme.app";
 
 export const SOCKET_URL = __DEV__
-  ? (USE_TUNNEL ? NGROK_URL : LOCAL_URL)
+  ? (USE_AWS_STAGING ? AWS_STAGING_URL : LOCAL_URL)
   : PROD_URL;
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
   transports: ["polling"],
   reconnection: true,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
-  reconnectionAttempts: 20,
-  timeout: 10000,
+  timeout: 20000,
+});
+
+socket.on("connect", () => {
+  console.log("✅ socket connected:", socket.id, SOCKET_URL);
+});
+
+socket.on("connect_error", (err) => {
+  console.log("❌ socket connect_error:", err?.message, err);
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("⚠️ socket disconnected:", reason);
+});
+
+socket.io.on("error", (err) => {
+  console.log("❌ manager error:", err);
 });
