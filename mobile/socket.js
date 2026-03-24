@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 
 const USE_AWS_STAGING = true;
 
-const AWS_STAGING_URL = "https://gnpwymhxhj.us-east-1.awsapprunner.com";
+const AWS_STAGING_URL = "http://54.161.4.72:5050";
 
 const LOCAL_URL =
   Platform.OS === "android"
