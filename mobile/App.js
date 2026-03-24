@@ -3321,21 +3321,6 @@ export default function App() {
       {/* GEO — paused */}
 
       {/* PASSPORT */}
-      {screen === "profile" && me && (
-        <View style={{ flex: 1, paddingBottom: 92 }}>
-          <ProfileScreen
-            me={me}
-            catches={passportCatches}
-            myTails={allTails.filter(t => t.from === me.username)}
-            following={following}
-            followers={[]}
-            streak={streak}
-            onBack={() => setScreen("hub")}
-            onOpenPassport={() => setScreen("passport")}
-            colors={C}
-          />
-        </View>
-      )}
       {screen === "ghost" && me && (
         <View style={{ flex: 1, paddingBottom: 92 }}>
           <GhostScreen
