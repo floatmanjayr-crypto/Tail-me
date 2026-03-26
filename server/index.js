@@ -1237,7 +1237,7 @@ httpServer.listen(PORT, "0.0.0.0", () => {
 // ============================================
 // FOLLOW SYSTEM
 // ============================================
-const fs = require("fs");
+// fs already required at top
 const FOLLOWS_FILE = __dirname + "/data/follows.json";
 const PUSH_TOKENS_FILE = __dirname + "/data/push_tokens.json";
 
