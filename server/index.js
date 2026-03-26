@@ -1237,7 +1237,76 @@ httpServer.listen(PORT, "0.0.0.0", () => {
 // ============================================
 // FOLLOW SYSTEM
 // ============================================
-const following = new Map(); // username → Set of usernames they follow
+const fs = require("fs");
+const FOLLOWS_FILE = __dirname + "/data/follows.json";
+const PUSH_TOKENS_FILE = __dirname + "/data/push_tokens.json";
+
+const following = new Map();
+const pushTokens = new Map();
+const analyticsEvents = [];
+
+// ── Persist helpers ──────────────────────────────────
+function loadFollows() {
+  try {
+    const data = JSON.parse(fs.readFileSync(FOLLOWS_FILE, "utf8"));
+    for (const [user, list] of Object.entries(data)) {
+      following.set(user, new Set(list));
+    }
+    console.log("Loaded follows for", following.size, "users");
+  } catch(e) { console.log("No saved follows yet"); }
+}
+
+function saveFollows() {
+  try {
+    const obj = {};
+    for (const [user, set] of following.entries()) {
+      obj[user] = [...set];
+    }
+    fs.mkdirSync(__dirname + "/data", { recursive: true });
+    fs.writeFileSync(FOLLOWS_FILE, JSON.stringify(obj, null, 2));
+  } catch(e) { console.log("Failed to save follows:", e.message); }
+}
+
+function loadPushTokens() {
+  try {
+    const data = JSON.parse(fs.readFileSync(PUSH_TOKENS_FILE, "utf8"));
+    for (const [user, token] of Object.entries(data)) {
+      pushTokens.set(user, token);
+    }
+    console.log("Loaded", pushTokens.size, "push tokens");
+  } catch(e) {}
+}
+
+function savePushTokens() {
+  try {
+    const obj = {};
+    for (const [user, token] of pushTokens.entries()) {
+      obj[user] = token;
+    }
+    fs.mkdirSync(__dirname + "/data", { recursive: true });
+    fs.writeFileSync(PUSH_TOKENS_FILE, JSON.stringify(obj, null, 2));
+  } catch(e) {}
+}
+
+function getFollowerCount(username) {
+  let count = 0;
+  for (const [, set] of following.entries()) {
+    if (set.has(username)) count++;
+  }
+  return count;
+}
+
+function getFollowers(username) {
+  const list = [];
+  for (const [u, set] of following.entries()) {
+    if (set.has(username)) list.push(u);
+  }
+  return list;
+}
+
+// Load persisted data on startup
+loadFollows();
+loadPushTokens();
 
 function getFollowing(username) {
   if (!following.has(username)) following.set(username, new Set());
