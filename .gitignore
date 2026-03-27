@@ -16,3 +16,4 @@ web-build/
 # OS/editor
 .DS_Store
 .vscode/
+tailme-key.pem

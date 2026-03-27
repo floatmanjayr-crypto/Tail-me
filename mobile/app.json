@@ -29,6 +29,11 @@
       "versionCode": 1
     },
     "scheme": "tailme",
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "072d6584-0875-47e7-80d2-c464a0c629e3"
+      }
+    }
   }
 }
