@@ -28,7 +28,8 @@
         "foregroundImage": "./assets/adaptive-icon.png"
       },
       "package": "com.tailme.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "usesCleartextTraffic": true
     },
     "scheme": "tailme",
     "plugins": [],
