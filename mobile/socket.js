@@ -12,9 +12,7 @@ const LOCAL_URL =
 
 const PROD_URL = "https://api.tailme.app";
 
-export const SOCKET_URL = __DEV__
-  ? (USE_AWS_STAGING ? AWS_STAGING_URL : LOCAL_URL)
-  : PROD_URL;
+export const SOCKET_URL = AWS_STAGING_URL;
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,

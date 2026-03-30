@@ -988,14 +988,16 @@ export default function TailHome({
   return (
     <View style={{ flex: 1 }}>
       {/* ── Tab switcher dots ── */}
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 10, backgroundColor: "#000", borderBottomWidth: 1, borderBottomColor: "#111" }}>
-        <TouchableOpacity onPress={() => setActiveTab("feed")} style={{ padding: 4 }}>
-          <View style={{ width: activeTab === "feed" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "feed" ? "#F59E0B" : "#1E293B" }} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab("grid")} style={{ padding: 4 }}>
-          <View style={{ width: activeTab === "grid" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "grid" ? "#7C3AED" : "#1E293B" }} />
-        </TouchableOpacity>
-      </View>
+      {activeTab !== "feed" && (
+        <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 10, backgroundColor: "#000", borderBottomWidth: 1, borderBottomColor: "#111" }}>
+          <TouchableOpacity onPress={() => setActiveTab("feed")} style={{ padding: 4 }}>
+            <View style={{ width: activeTab === "feed" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "feed" ? "#F59E0B" : "#1E293B" }} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab("grid")} style={{ padding: 4 }}>
+            <View style={{ width: activeTab === "grid" ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: activeTab === "grid" ? "#7C3AED" : "#1E293B" }} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Split Feed ── */}
       {activeTab === "feed" && (

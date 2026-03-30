@@ -35,6 +35,8 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import CatchTailModal from "./CatchTailModal";
 import TailHome from "./TailHome";
@@ -4109,6 +4111,7 @@ export default function App() {
           {/* FAB with connection dot */}
           <Pressable
             onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               resetComposer();
               setComposerOpen(true);
             }}
@@ -4160,10 +4163,10 @@ export default function App() {
             }}
           >
             {[
-              { key: "hub",      label: "Home",     icon: "🏠" },
-              { key: "search",   label: "Search",   icon: "🔍" },
-              { key: "ghost",    label: "Ghost",    icon: "👻" },
-              { key: "profile",  label: "Profile",  icon: "👤" },
+              { key: "hub",      label: "Home",     icon: "home",          iconOutline: "home-outline" },
+              { key: "search",   label: "Search",   icon: "search",        iconOutline: "search-outline" },
+              { key: "ghost",    label: "Ghost",    icon: "eye-off",       iconOutline: "eye-off-outline" },
+              { key: "profile",  label: "Profile",  icon: "person",        iconOutline: "person-outline" },
             ].map((it) => {
               const active = screen === it.key;
               const badge =
@@ -4174,23 +4177,25 @@ export default function App() {
                 <Pressable
                   key={it.key}
                   onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (it.key === "profile") {
+                      setProfileUser(me?.username);
+                    }
                     setScreen(it.key);
                   }}
                   style={{
                     flex: 1,
                     paddingVertical: 8,
                     borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: active ? C.brand : C.border,
-                    backgroundColor: active
-                      ? "rgba(124,58,237,0.18)"
-                      : "transparent",
+                    borderWidth: 0,
+                    borderColor: "transparent",
+                    backgroundColor: "transparent",
                     alignItems: "center",
-                    gap: 2,
+                    gap: 3,
                   }}
                 >
                   <View style={{ position: "relative" }}>
-                    <Text style={{ fontSize: 14 }}>{it.icon}</Text>
+                    <Ionicons name={active ? it.icon : it.iconOutline} size={20} color={active ? C.brand : C.muted} />
                     {badge != null && (
                       <View
                         style={{
@@ -4219,9 +4224,9 @@ export default function App() {
                   </View>
                   <Text
                     style={{
-                      color: active ? C.text : C.muted,
-                      fontWeight: "900",
-                      fontSize: 9,
+                      color: active ? C.brand : C.muted,
+                      fontWeight: active ? "800" : "600",
+                      fontSize: 10,
                     }}
                   >
                     {it.label}

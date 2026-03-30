@@ -13,6 +13,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, FlatList,
 } from "react-native";
 import { Video, ResizeMode } from "expo-av";
+import * as Haptics from "expo-haptics";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -97,7 +98,7 @@ function CommentSheet({ visible, onClose, color }) {
           transform: [{ translateY: slideAnim }],
           backgroundColor: "#0D1220",
           borderTopLeftRadius: 24, borderTopRightRadius: 24,
-          borderWidth: 1, borderColor: "#1E293B",
+          borderWidth: 0, borderColor: "transparent",
           maxHeight: SH * 0.75,
         }}>
           <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
@@ -154,7 +155,7 @@ function CommentSheet({ visible, onClose, color }) {
               style={{
                 flex: 1, backgroundColor: "#111827", borderRadius: 20,
                 paddingHorizontal: 14, paddingVertical: 10, color: "#fff", fontSize: 14,
-                borderWidth: 1, borderColor: "#1E293B",
+                borderWidth: 0, borderColor: "transparent",
               }}
               onSubmitEditing={handleSend}
             />
@@ -491,14 +492,17 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
   const Layout = LAYOUTS[layout] || LayoutB;
   const spotsLeft = tail?.catchLimit != null ? Math.max(0, tail.catchLimit - (tail.catchCount || 0)) : null;
   const boxes = buildBoxes(tail);
+  const headlineTop = tail?.headlineTop || tail?.hookText || "";
 
   const handleCatch = () => {
     if (caught) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCaught(true);
     onCatch?.(tail);
   };
 
   const handleLike = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLiked(prev => {
       setLikeTotal(t => prev ? t - 1 : t + 1);
       return !prev;
@@ -508,15 +512,14 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
   return (
     <>
       <View style={styles.card}>
-        {/* Hook */}
-        {tail?.message ? (
-          <View style={styles.hookBar}>
-            <Text style={styles.hookText} numberOfLines={3}>{tail.message}</Text>
+        {headlineTop ? (
+          <View style={styles.headlineWrap}>
+            <Text style={styles.headlineText} numberOfLines={3}>{headlineTop}</Text>
           </View>
         ) : null}
 
         {/* Frame */}
-        <View style={{ gap: 2, backgroundColor: "#0D1220" }}>
+        <View style={{ gap: 0, backgroundColor: "#000" }}>
           <Layout boxes={boxes} onCatch={handleCatch} caught={caught} color={color} isVisible={isVisible} />
         </View>
 
@@ -536,19 +539,19 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
             {/* Like */}
             <TouchableOpacity onPress={handleLike} style={{ alignItems: "center", gap: 1 }}>
               <Text style={{ fontSize: 18 }}>{liked ? "❤️" : "🤍"}</Text>
-              <Text style={{ color: liked ? "#EF4444" : "#475569", fontSize: 9, fontWeight: "800" }}>{likeTotal}</Text>
+              <Text style={{ color: liked ? "#EF4444" : "#64748B", fontSize: 10, fontWeight: "800" }}>{likeTotal}</Text>
             </TouchableOpacity>
 
             {/* Share */}
             <TouchableOpacity onPress={() => onShare?.(tail)} style={{ alignItems: "center", gap: 1 }}>
               <Text style={{ fontSize: 18 }}>↗️</Text>
-              <Text style={{ color: "#475569", fontSize: 9, fontWeight: "800" }}>Share</Text>
+              <Text style={{ color: "#64748B", fontSize: 10, fontWeight: "800" }}>Share</Text>
             </TouchableOpacity>
 
             {/* Comment */}
             <TouchableOpacity onPress={() => setCommentsOpen(true)} style={{ alignItems: "center", gap: 1 }}>
               <Text style={{ fontSize: 18 }}>💬</Text>
-              <Text style={{ color: "#475569", fontSize: 9, fontWeight: "800" }}>
+              <Text style={{ color: "#64748B", fontSize: 10, fontWeight: "800" }}>
                 {Math.floor(Math.random() * 20) + 1}
               </Text>
             </TouchableOpacity>
@@ -559,6 +562,15 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
             </View>
           </View>
         </View>
+
+        {tail?.message ? (
+          <View style={styles.captionWrap}>
+            <Text style={styles.captionText} numberOfLines={3}>
+              <Text style={styles.captionUser}>@{tail?.from} </Text>
+              {tail.message}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <CommentSheet visible={commentsOpen} onClose={() => setCommentsOpen(false)} color={color} />
@@ -566,28 +578,29 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
   );
 }
 
-const FRAME_H = SW * 0.72;
+const CARD_W = SW;
+const FRAME_H = CARD_W * 1.15;
 const SMALL_H = FRAME_H / 2 - 1;
 
 const styles = StyleSheet.create({
   card: {
-    width: SW - 24, marginHorizontal: 12, marginVertical: 8,
-    backgroundColor: "#0D1220", borderRadius: 20, overflow: "hidden",
-    borderWidth: 1, borderColor: "#1E293B",
+    width: SW, marginHorizontal: 0, marginVertical: 0, borderBottomWidth: 1, borderBottomColor: "#1a1a1a",
+    backgroundColor: "#000", borderRadius: 0, overflow: "hidden",
+    borderWidth: 0, borderColor: "transparent",
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
-  hookBar: { backgroundColor: "#0D1220", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#1E293B" },
-  hookText: { fontSize: 18, fontWeight: "900", color: "#fff", lineHeight: 26, textAlign: "center", letterSpacing: 0.2, textTransform: "uppercase" },
+  hookBar: { backgroundColor: "#000", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0, borderBottomColor: "transparent" },
+  hookText: { fontSize: 16, fontWeight: "800", color: "#fff", lineHeight: 23, textAlign: "left", letterSpacing: 0.1 },
   gridA: { flexDirection: "row", flexWrap: "wrap", gap: 2, backgroundColor: "#0D1220" },
-  cellSmallA: { width: SW / 2 - 1, height: SMALL_H, backgroundColor: "#111" },
-  cellBigA: { width: SW / 2 - 1, height: FRAME_H, position: "absolute", right: 0, top: 0, backgroundColor: "#111" },
+  cellSmallA: { width: CARD_W / 2 - 1, height: SMALL_H, backgroundColor: "#111" },
+  cellBigA: { width: CARD_W / 2 - 1, height: FRAME_H, position: "absolute", right: 0, top: 0, backgroundColor: "#111" },
   gridB: { flexDirection: "row", gap: 2, backgroundColor: "#0D1220" },
   cellHalf: { flex: 1, height: FRAME_H, backgroundColor: "#111" },
-  gridC: { width: SW, height: FRAME_H * 1.1, backgroundColor: "#111" },
+  gridC: { width: CARD_W, height: FRAME_H * 1.08, backgroundColor: "#111" },
   gridD: { flexDirection: "row", gap: 2, backgroundColor: "#0D1220" },
   cellThird: { flex: 1, height: FRAME_H * 0.85, backgroundColor: "#111" },
-  cellBigTop: { width: SW, height: FRAME_H * 0.65, backgroundColor: "#111" },
+  cellBigTop: { width: CARD_W, height: FRAME_H * 0.68, backgroundColor: "#111" },
   soundBadge: { position: "absolute", bottom: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
   expandHint: { position: "absolute", bottom: 8, left: 8, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   zoomHint: { position: "absolute", bottom: 6, left: 6, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
@@ -616,12 +629,12 @@ const styles = StyleSheet.create({
   tapHint: { fontSize: 9, fontWeight: "800", color: "rgba(255,255,255,0.35)", letterSpacing: 2, textTransform: "uppercase" },
   caughtOverlay: { backgroundColor: "rgba(0,180,60,0.25)", alignItems: "center", justifyContent: "center", gap: 8 },
   caughtText: { fontSize: 13, fontWeight: "900", color: "#00e676", letterSpacing: 2, textTransform: "uppercase" },
-  bottomBar: { backgroundColor: "#0D1220", paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: "#1E293B" },
+  bottomBar: { backgroundColor: "#000", paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 0, borderTopColor: "transparent" },
   userRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  avi: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  aviText: { color: "#fff", fontSize: 12, fontWeight: "900" },
-  username: { color: "#E2E8F0", fontSize: 12, fontWeight: "700" },
-  time: { color: "#475569", fontSize: 10, fontWeight: "500", marginTop: 1 },
+  avi: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  aviText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  username: { color: "#E2E8F0", fontSize: 13, fontWeight: "800" },
+  time: { color: "#64748B", fontSize: 11, fontWeight: "500", marginTop: 2 },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
-  typeBadgeText: { fontSize: 9, fontWeight: "900", letterSpacing: 1.5, textTransform: "uppercase" },
+  typeBadgeText: { fontSize: 10, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase" },
 });

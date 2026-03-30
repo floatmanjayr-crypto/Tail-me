@@ -2,7 +2,7 @@
 // SplitFeedScreen.js — Vertical scroll feed
 // ============================================================
 import React, { useCallback, useRef, useState } from "react";
-import { View, FlatList, Dimensions, StyleSheet, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, FlatList, Dimensions, StyleSheet, Text, ScrollView, TouchableOpacity, Animated } from "react-native";
 import SplitFrameCard from "./SplitFrameCard";
 
 const { width: SW } = Dimensions.get("window");
@@ -18,6 +18,18 @@ const DEMO_SPLIT_TAILS = [
 
 export default function SplitFeedScreen({ tails = [], onCatch, onShare, colors: C, categoryFilterOptions = [], selectedCategory = "foryou", onCategoryChange, me, isPro = false, streak = 0, earnings = 0, onOpenPrivate, inboxCount = 0 }) {
   const [visibleIndex, setVisibleIndex] = useState(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const HEADER_TOTAL = categoryFilterOptions.length > 0 ? 100 : 58;
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_TOTAL],
+    outputRange: [0, -HEADER_TOTAL],
+    extrapolate: "clamp",
+  });
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_TOTAL * 0.6, HEADER_TOTAL],
+    outputRange: [1, 0.35, 0],
+    extrapolate: "clamp",
+  });
   const feedTails = [...DEMO_SPLIT_TAILS, ...tails.filter(t => t.frameLayout)];
 
   const onViewableItemsChanged = useCallback(({ viewableItems }) => {
@@ -42,32 +54,46 @@ export default function SplitFeedScreen({ tails = [], onCatch, onShare, colors: 
 
   return (
     <View style={[styles.container, { backgroundColor: C?.bg || "#000" }]}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 24 }}>🦊</Text>
-          <Text style={{ color: C?.text || "#fff", fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
-          {isPro && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}><Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text></View>}
+      <Animated.View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          transform: [{ translateY: headerTranslateY }],
+          opacity: headerOpacity,
+          backgroundColor: C?.bg || "#000",
+        }}
+      >
+        {/* Header */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={{ fontSize: 24 }}>🦊</Text>
+            <Text style={{ color: C?.text || "#fff", fontWeight: "900", fontSize: 20, letterSpacing: -0.5 }}>Tail Me</Text>
+            {isPro && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#F59E0B" }}><Text style={{ color: "#000", fontWeight: "900", fontSize: 9 }}>PRO</Text></View>}
+          </View>
+          <TouchableOpacity onPress={onOpenPrivate} style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C?.border || "#1E293B", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={onOpenPrivate} style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: inboxCount > 0 ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", borderWidth: 1.5, borderColor: inboxCount > 0 ? "#7C3AED" : C?.border || "#1E293B", alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ fontSize: 15 }}>{inboxCount > 0 ? "📬" : "👤"}</Text>
-        </TouchableOpacity>
-      </View>
-      {/* Category chips */}
-      {categoryFilterOptions.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B", maxHeight: 46 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}>
-          {categoryFilterOptions.map(opt => {
-            const isSelected = selectedCategory === opt.id;
-            return (
-              <TouchableOpacity key={opt.id} onPress={() => onCategoryChange?.(opt.id)} style={{ minWidth: 32, height: 32, paddingHorizontal: opt.labelFull ? 10 : 0, borderRadius: 16, borderWidth: 1, borderColor: isSelected ? "#7C3AED" : C?.border || "#1E293B", backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 3 }}>
-                <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
-                {opt.labelFull && <Text style={{ color: isSelected ? C?.text || "#fff" : C?.muted || "#94A3B8", fontWeight: "800", fontSize: 11 }}>{opt.labelFull}</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
-      <FlatList
+
+        {/* Category chips */}
+        {categoryFilterOptions.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ borderBottomWidth: 1, borderBottomColor: C?.border || "#1E293B", maxHeight: 46 }} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 7, gap: 6, alignItems: "center" }}>
+            {categoryFilterOptions.map(opt => {
+              const isSelected = selectedCategory === opt.id;
+              return (
+                <TouchableOpacity key={opt.id} onPress={() => onCategoryChange?.(opt.id)} style={{ minWidth: 32, height: 32, paddingHorizontal: opt.labelFull ? 10 : 0, borderRadius: 16, borderWidth: 1, borderColor: isSelected ? "#7C3AED" : C?.border || "#1E293B", backgroundColor: isSelected ? "rgba(124,58,237,0.2)" : C?.panel || "#0D1220", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 3 }}>
+                  <Text style={{ fontSize: 16 }}>{opt.icon}</Text>
+                  {opt.labelFull && <Text style={{ color: isSelected ? C?.text || "#fff" : C?.muted || "#94A3B8", fontWeight: "800", fontSize: 11 }}>{opt.labelFull}</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+      </Animated.View>
+      <Animated.FlatList
         data={feedTails}
         renderItem={renderItem}
         keyExtractor={item => item.id}
@@ -77,7 +103,12 @@ export default function SplitFeedScreen({ tails = [], onCatch, onShare, colors: 
         maxToRenderPerBatch={3}
         windowSize={5}
         removeClippedSubviews
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingTop: HEADER_TOTAL, paddingBottom: 80 }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       />
     </View>
   );

@@ -8,7 +8,8 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "backgroundColor": "#070A0F",
-      "resizeMode": "contain"
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -23,7 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#070A0F"
+        "backgroundColor": "#070A0F",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "package": "com.tailme.app",
       "versionCode": 1
