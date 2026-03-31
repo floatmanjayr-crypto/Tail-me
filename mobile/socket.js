@@ -16,7 +16,7 @@ export const SOCKET_URL = AWS_STAGING_URL;
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
-  transports: ["polling"],
+  transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
