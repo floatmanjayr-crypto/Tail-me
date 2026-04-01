@@ -1,5 +1,9 @@
-.git/
-.expo/
+node_modules
+.git
 *.pem
-*.backup
-*.msi
+android
+ios
+__tests__
+*.test.js
+*.spec.js
+.env
