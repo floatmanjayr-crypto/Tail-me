@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { Video, ResizeMode } from "expo-av";
 import * as Haptics from "expo-haptics";
-import StorefrontOverlay from "./StorefrontOverlay";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -323,7 +322,7 @@ function LinkBox({ url, label, color, style }) {
 }
 
 // ── REVEAL BOX ───────────────────────────────────────────
-function RevealBox({ uri, onCatch, caught, color, style, storefrontCover, storefrontAnimation, storefrontColor }) {
+function RevealBox({ uri, onCatch, caught, color, style }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -370,33 +369,20 @@ function RevealBox({ uri, onCatch, caught, color, style, storefrontCover, storef
           </Animated.View>
         </View>
       ) : (
-        storefrontCover || true ? (
-          <StorefrontOverlay
-            coverUrl={storefrontCover}
-            username=""
-            color={storefrontColor}
-            animation={storefrontAnimation}
-            onCatch={onCatch}
-          >
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: color + "15", alignItems: "center", justifyContent: "center", gap: 10 }]}>
-              <Text style={{ fontSize: 40 }}>🎁</Text>
-            </View>
-          </StorefrontOverlay>
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.caughtOverlay]}>
-            <Text style={{ fontSize: 36 }}>✅</Text>
-          </View>
-        )
+        <View style={[StyleSheet.absoluteFill, styles.caughtOverlay]}>
+          <Text style={{ fontSize: 36 }}>✅</Text>
+          <Text style={styles.caughtText}>Caught!</Text>
+        </View>
       )}
     </Pressable>
   );
 }
 
 // ── MAGIC BOX ────────────────────────────────────────────
-function MagicBox({ box, idx, onCatch, caught, color, style, storefrontCover, storefrontAnimation, storefrontColor }) {
+function MagicBox({ box, idx, onCatch, caught, color, style }) {
   const type = box?.type || "video";
   switch (type) {
-    case "reveal":  return <RevealBox uri={box?.uri} onCatch={onCatch} caught={caught} color={color} style={style} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} />;
+    case "reveal":  return <RevealBox uri={box?.uri} onCatch={onCatch} caught={caught} color={color} style={style} />;
     case "voice":   return <VoiceBox color={color} style={style} />;
     case "logo":    return <LogoBox uri={box?.uri} text={box?.text} color={color} style={style} />;
     case "text":    return <TextBox text={box?.text} color={color} style={style} />;
@@ -409,45 +395,45 @@ function MagicBox({ box, idx, onCatch, caught, color, style, storefrontCover, st
 }
 
 // ── LAYOUTS ──────────────────────────────────────────────
-function LayoutA({ boxes, onCatch, caught, color, storefrontCover, storefrontAnimation, storefrontColor }) {
+function LayoutA({ boxes, onCatch, caught, color }) {
   return (
     <View style={styles.gridA}>
-      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellSmallA} />
-      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellBigA} />
-      <MagicBox box={boxes[2]} idx={2} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellSmallA} />
+      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} style={styles.cellSmallA} />
+      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} style={styles.cellBigA} />
+      <MagicBox box={boxes[2]} idx={2} onCatch={onCatch} caught={caught} color={color} style={styles.cellSmallA} />
     </View>
   );
 }
-function LayoutB({ boxes, onCatch, caught, color, storefrontCover, storefrontAnimation, storefrontColor }) {
+function LayoutB({ boxes, onCatch, caught, color }) {
   return (
     <View style={styles.gridB}>
-      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellHalf} />
-      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellHalf} />
+      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} style={styles.cellHalf} />
+      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} style={styles.cellHalf} />
     </View>
   );
 }
-function LayoutC({ boxes, onCatch, caught, color, storefrontCover, storefrontAnimation, storefrontColor }) {
+function LayoutC({ boxes, onCatch, caught, color }) {
   return (
     <View style={styles.gridC}>
       <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} style={{ flex: 1 }} />
     </View>
   );
 }
-function LayoutD({ boxes, onCatch, caught, color, storefrontCover, storefrontAnimation, storefrontColor }) {
+function LayoutD({ boxes, onCatch, caught, color }) {
   return (
     <View style={styles.gridD}>
-      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellThird} />
-      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellThird} />
-      <MagicBox box={boxes[2]} idx={2} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellThird} />
+      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} style={styles.cellThird} />
+      <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} style={styles.cellThird} />
+      <MagicBox box={boxes[2]} idx={2} onCatch={onCatch} caught={caught} color={color} style={styles.cellThird} />
     </View>
   );
 }
-function LayoutE({ boxes, onCatch, caught, color, storefrontCover, storefrontAnimation, storefrontColor }) {
+function LayoutE({ boxes, onCatch, caught, color }) {
   return (
     <View style={{ gap: 2 }}>
-      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellBigTop} />
+      <MagicBox box={boxes[0]} idx={0} onCatch={onCatch} caught={caught} color={color} style={styles.cellBigTop} />
       <View style={styles.gridB}>
-        <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} style={styles.cellHalf} />
+        <MagicBox box={boxes[1]} idx={1} onCatch={onCatch} caught={caught} color={color} style={styles.cellHalf} />
         <MagicBox box={boxes[2]} idx={2} onCatch={onCatch} caught={caught} color={color} style={styles.cellHalf} />
       </View>
     </View>
@@ -486,7 +472,7 @@ function buildBoxes(tail) {
 }
 
 // ── MAIN EXPORT ──────────────────────────────────────────
-export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = true, onShare, theme = "dark", storefrontCover = null, storefrontAnimation = "door", storefrontColor = "#7C3AED" }) {
+export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = true, onShare }) {
   const [caught, setCaught] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -518,7 +504,7 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
 
   return (
     <>
-      <View style={[styles.card, { backgroundColor: theme === "light" ? "#F5F5F5" : "#000" }]}>
+      <View style={styles.card}>
         {headlineTop ? (
           <View style={styles.headlineWrap}>
             <Text style={styles.headlineText} numberOfLines={3}>{headlineTop}</Text>
@@ -527,7 +513,7 @@ export default function SplitFrameCard({ tail, onCatch, onClose, isVisible = tru
 
         {/* Frame */}
         <View style={{ backgroundColor: "#000" }}>
-          <Layout boxes={boxes} onCatch={handleCatch} caught={caught} color={color} isVisible={isVisible} storefrontCover={storefrontCover} storefrontAnimation={storefrontAnimation} storefrontColor={storefrontColor} />
+          <Layout boxes={boxes} onCatch={handleCatch} caught={caught} color={color} isVisible={isVisible} />
         </View>
 
         {/* Bottom bar */}
@@ -591,11 +577,11 @@ const SMALL_H = FRAME_H / 2 - 1;
 const styles = StyleSheet.create({
   card: {
     width: SW,
-    backgroundColor: "#000", // Overridden by inline style
+    backgroundColor: "#000",
     overflow: "hidden",
   },
   headlineWrap: { 
-    backgroundColor: "transparent", 
+    backgroundColor: "#000", 
     paddingHorizontal: 16, 
     paddingTop: 12, 
     paddingBottom: 10 

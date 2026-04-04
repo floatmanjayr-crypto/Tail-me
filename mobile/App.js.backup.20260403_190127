@@ -57,7 +57,6 @@ import SplitFrameCard from "./SplitFrameCard";
 import SearchScreen from "./SearchScreen";
 import useAnalytics from "./useAnalytics";
 
-import StorefrontCustomizer from "./StorefrontCustomizer";
 // ── Notification handler ────────────────────────────────
 try {
   Notifications.setNotificationHandler({
@@ -320,7 +319,6 @@ export default function App() {
 
   // Composer
   const [composerOpen, setComposerOpen] = useState(false);
-  const [showStorefrontCustomizer, setShowStorefrontCustomizer] = useState(false);
   const [composerStep, setComposerStep] = useState(1);
   const [composerMode, setComposerMode] = useState("public");
   const [composeUrl, setComposeUrl] = useState("");
@@ -397,13 +395,6 @@ export default function App() {
           try {
             const parsed = JSON.parse(interests) || [];
             setMe(prev => prev ? { ...prev, interests: parsed } : { username: "", interests: parsed });
-          } catch {}
-        }
-        const sf = await AsyncStorage.getItem("tailme_storefront");
-        if (sf) {
-          try {
-            const s = JSON.parse(sf);
-            setMe(prev => prev ? { ...prev, storefrontCover: s.coverUrl, storefrontAnimation: s.animation, storefrontColor: s.color } : prev);
           } catch {}
         }
       } catch {}
@@ -3326,9 +3317,8 @@ export default function App() {
             currentAnimation={me?.storefrontAnimation || "door"}
             currentColor={me?.storefrontColor || "#7C3AED"}
             onSave={(settings) => {
-              setMe(prev => ({ ...prev, storefrontCover: settings.coverUrl, storefrontAnimation: settings.animation, storefrontColor: settings.color }));
+              // Save to server
               socket.emit("update-storefront", settings);
-              AsyncStorage.setItem("tailme_storefront", JSON.stringify(settings)).catch(() => {});
               setShowStorefrontSettings(false);
             }}
             onClose={() => setShowStorefrontSettings(false)}
@@ -3767,37 +3757,6 @@ export default function App() {
             </View>
 
             {/* Theme */}
-            
-            {/* Storefront Customizer Button */}
-            <TouchableOpacity
-              onPress={() => setShowStorefrontCustomizer(true)}
-              style={{
-                marginTop: 14,
-                backgroundColor: C.panel,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: C.border,
-                padding: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <Text style={{ fontSize: 24 }}>🎨</Text>
-                <View>
-                  <Text style={{ color: C.text, fontWeight: "900", fontSize: 15 }}>
-                    Customize Storefront
-                  </Text>
-                  <Text style={{ color: C.dim, fontSize: 11 }}>
-                    {me?.storefrontConfig?.enabled ? "Enabled" : "Not set up"}
-                  </Text>
-                </View>
-              </View>
-              <Text style={{ color: C.muted }}>→</Text>
-            </TouchableOpacity>
-
-
             <View
               style={{
                 marginTop: 14,
@@ -4323,18 +4282,6 @@ export default function App() {
           />
         </View>
       )}
-    
-      {/* Storefront Customizer Modal */}
-      <StorefrontCustomizer
-        visible={showStorefrontCustomizer}
-        initialConfig={me?.storefrontConfig}
-        onSave={(config) => {
-          setMe((prev) => ({ ...prev, storefrontConfig: config }));
-        }}
-        onClose={() => setShowStorefrontCustomizer(false)}
-        colors={C}
-      />
-
     </SafeAreaView>
   );
 }

@@ -1015,9 +1015,6 @@ export default function TailHome({
           onOpenPrivate={onOpenPrivate}
           inboxCount={inboxCount}
           onShare={onShareTail}
-          storefrontCover={me?.storefrontCover}
-          storefrontAnimation={me?.storefrontAnimation || "door"}
-          storefrontColor={me?.storefrontColor || "#7C3AED"}
         />
       )}
 

@@ -399,13 +399,6 @@ export default function App() {
             setMe(prev => prev ? { ...prev, interests: parsed } : { username: "", interests: parsed });
           } catch {}
         }
-        const sf = await AsyncStorage.getItem("tailme_storefront");
-        if (sf) {
-          try {
-            const s = JSON.parse(sf);
-            setMe(prev => prev ? { ...prev, storefrontCover: s.coverUrl, storefrontAnimation: s.animation, storefrontColor: s.color } : prev);
-          } catch {}
-        }
       } catch {}
     })();
   }, []);
@@ -3326,9 +3319,8 @@ export default function App() {
             currentAnimation={me?.storefrontAnimation || "door"}
             currentColor={me?.storefrontColor || "#7C3AED"}
             onSave={(settings) => {
-              setMe(prev => ({ ...prev, storefrontCover: settings.coverUrl, storefrontAnimation: settings.animation, storefrontColor: settings.color }));
+              // Save to server
               socket.emit("update-storefront", settings);
-              AsyncStorage.setItem("tailme_storefront", JSON.stringify(settings)).catch(() => {});
               setShowStorefrontSettings(false);
             }}
             onClose={() => setShowStorefrontSettings(false)}
